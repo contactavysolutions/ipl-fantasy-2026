@@ -470,8 +470,9 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
   const [adminTab,setAdminTab]=useState("results");
   const [selectedMatch,setSelectedMatch]=useState(null);
   const [now]=useState(new Date());
-  const EMPTY_FORM={winningTeam:"",winByRuns:true,runMargin:0,wicketMargin:0,topScorer:"",topScorerRuns:0,bestBowler:"",bestBowlerPoints:0,powerplayWinner:"",powerplayScore:0,powerplayDiff:0,dotBallLeader:"",dotBalls:0,totalWickets:0,wicketsRange:"",duckBatsmen:"",matchTopPlayer:"",matchBottomPlayer:""};
+  const EMPTY_FORM={winningTeam:"",winByRuns:true,runMargin:0,wicketMargin:0,topScorer:"",topScorerRuns:0,bestBowler:"",bestBowlerPoints:0,powerplayWinner:"",powerplayScore:0,powerplayDiff:0,dotBallLeader:"",dotBalls:0,totalWickets:0,wicketsRange:"",duckBatsmen:[],matchTopPlayer:"",matchBottomPlayer:""};
   const [form,setForm]=useState(EMPTY_FORM);
+  const [duckBatamenSelected,setDuckBatmenSelected]=useState("");
   const [saved,setSaved]=useState(false);
   const [saving,setSaving]=useState(false);
 
@@ -479,7 +480,8 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
   const selectMatch=(m)=>{
     setSelectedMatch(m);
     const ex=results[m.id];
-    setForm(ex?{...EMPTY_FORM,...ex,duckBatsmen:(ex.duckBatsmen||[]).join(", ")}:EMPTY_FORM);
+    setForm(ex?{...EMPTY_FORM,...ex,duckBatsmen:ex.duckBatsmen||[]}:EMPTY_FORM);
+    setDuckBatmenSelected("");
     setSaved(false);
   };
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -493,7 +495,6 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
       topScorerRuns:parseInt(form.topScorerRuns)||0,bestBowlerPoints:parseInt(form.bestBowlerPoints)||0,
       powerplayScore:parseInt(form.powerplayScore)||0,powerplayDiff:parseInt(form.powerplayDiff)||0,
       dotBalls:parseInt(form.dotBalls)||0,totalWickets:parseInt(form.totalWickets)||0,
-      duckBatsmen:form.duckBatsmen.split(",").map(s=>s.trim()).filter(Boolean),
     };
     await onSaveResult(selectedMatch.id,res);
     setSaved(true); setSaving(false); setTimeout(()=>setSaved(false),3000);
@@ -508,7 +509,7 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
       <label style={S.label}>{label}</label>
       {opts
         ?<select style={S.select} value={form[k]} onChange={e=>setF(k,e.target.value)}><option value="">-- Select --</option>{opts.map(o=><option key={o} value={o}>{o}</option>)}</select>
-        :<input style={S.input} type={type} value={form[k]} onChange={e=>setF(k,type==="number"?parseFloat(e.target.value):e.target.value)}/>
+        :<input style={{...S.input,fontSize:"16px"}} inputMode={type==="number"?"decimal":"text"} type={type} value={form[k]} onChange={e=>setF(k,type==="number"?parseFloat(e.target.value):e.target.value)}/>
       }
     </div>
   );
@@ -562,8 +563,22 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
                   <IField label="Top Scorer" k="topScorer" opts={allPlayers}/>
                   <IField label="Runs Scored" k="topScorerRuns" type="number"/>
                   <div style={{gridColumn:"1/-1"}}>
-                    <label style={S.label}>Duck Batsmen (comma separated)</label>
-                    <input style={S.input} value={form.duckBatsmen} onChange={e=>setF("duckBatsmen",e.target.value)} placeholder="e.g. Virat Kohli, Rohit Sharma"/>
+                    <label style={S.label}>Duck Batsmen</label>
+                    <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+                      <select style={{...S.select,flex:1}} value={duckBatamenSelected} onChange={e=>setDuckBatmenSelected(e.target.value)}>
+                        <option value="">-- Select Player --</option>
+                        {allPlayers.filter(p=>!form.duckBatsmen.includes(p)).map(p=><option key={p} value={p}>{p}</option>)}
+                      </select>
+                      <button style={{...S.btn("primary"),padding:"10px 16px"}} onClick={()=>{if(duckBatamenSelected){setF("duckBatsmen",[...form.duckBatsmen,duckBatamenSelected]);setDuckBatmenSelected("");}}}>+ Add</button>
+                    </div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+                      {form.duckBatsmen.map(b=>(
+                        <span key={b} style={{background:"rgba(255,165,0,0.2)",border:"1px solid rgba(255,165,0,0.4)",borderRadius:"6px",padding:"6px 12px",fontSize:"13px",display:"flex",alignItems:"center",gap:"8px"}}>
+                          {b}
+                          <button onClick={()=>setF("duckBatsmen",form.duckBatsmen.filter(x=>x!==b))} style={{background:"transparent",border:"none",cursor:"pointer",color:"#ff6b6b",fontSize:"16px",padding:"0",lineHeight:"1"}}>✕</button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

@@ -64,7 +64,7 @@ const PLAYERS = {
 
 const WICKET_RANGES = ["<5","5-8","9-11","12-14","15-17","18-20"];
 const DOUBLE_CATEGORIES = ["Winning Team","Best Batsman","Best Bowler","Powerplay Winner","Dot-Ball Bowler","Total Wickets"];
-const FANTASY_PLAYERS = ["Ani","Haren","Ganga","Jitendar","Mahesh","Nag","Naren","Navdeep","Omkar","Peddi","Praveen","Raghav","Ranga","Rohit","Sandeep","Santhosh","Soma","Sridhar K","Krishna","Venky","Naresh","Srikanth B","Prashanth","Sreeram","Santhosh Male"];
+const FANTASY_PLAYERS = ["Ani","Haren","Ganga","Jitendar","Mahesh","Nag","Naren","Navdeep","Omkar","Peddi","Praveen","Raghav","Ranga","Rohit","Sandeep","Santhosh","Soma","Sridhar K","Krishna","Venky","Naresh","Srikanth B","Prashanth","Sreeram","Santhosh Male"].sort();
 
 // ─── SCORING ENGINE ───────────────────────────────────────────────────────────
 function camelize(str) {
@@ -231,7 +231,7 @@ function SelectionForm({match,user,onBack,results,userSel,onSave}) {
   const [saved,setSaved]=useState(!!userSel[match.id]);
   const [msg,setMsg]=useState("");
   const [saving,setSaving]=useState(false);
-  const allPlayers=[...new Set([...(PLAYERS[match.home]||[]),...(PLAYERS[match.away]||[])])];
+  const allPlayers=[...new Set([...(PLAYERS[match.home]||[]),...(PLAYERS[match.away]||[])])].sort();
   const set=(k,v)=>setSel(s=>({...s,[k]:v}));
   const st=getStatus(match,now,results,userSel);
 
@@ -500,7 +500,7 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
   };
 
   const m=selectedMatch;
-  const allPlayers=m?[...new Set([...(PLAYERS[m.home]||[]),...(PLAYERS[m.away]||[])])] :[];
+  const allPlayers=m?[...new Set([...(PLAYERS[m.home]||[]),...(PLAYERS[m.away]||[])])].sort() :[];
   const submissionCount=selectedMatch?FANTASY_PLAYERS.filter(name=>allSelections[name.toLowerCase().replace(/\s/g,"_")]?.[selectedMatch.id]).length:0;
 
   const IField=({label,k,type="text",opts})=>(

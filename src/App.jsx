@@ -476,7 +476,135 @@ const IField=({label,value,onChange,type="text",opts})=>{const isNum=type==="num
   </div>
 );};
 
-function AdminPage({matches,results,onSaveResult,allSelections}) {
+// ─── PLAYER SELECTIONS TAB ────────────────────────────────────────────────────
+const SEL_FIELDS=[
+  {key:"winningTeam",label:"Winner",type:"team"},
+  {key:"bestBatsman",label:"Best Bat",type:"player"},
+  {key:"bestBowler",label:"Best Bowl",type:"player"},
+  {key:"powerplayWinner",label:"PP Winner",type:"team"},
+  {key:"dotBallBowler",label:"Dot-Ball",type:"player"},
+  {key:"totalWickets",label:"Wickets",type:"wickets"},
+  {key:"duckBatsman",label:"Duck",type:"player"},
+  {key:"doubleCategory",label:"Double",type:"double"},
+  {key:"winningHorse",label:"🏆 Horse",type:"fantasy"},
+  {key:"losingHorse",label:"💀 Horse",type:"fantasy"},
+];
+
+function PlayerSelectionsTab({matches,allSelections,onSaveSelection}) {
+  const [now]=useState(new Date());
+  const [selectedMatchId,setSelectedMatchId]=useState("");
+  const [editingPlayer,setEditingPlayer]=useState(null);
+  const [editForm,setEditForm]=useState({});
+  const [saving,setSaving]=useState(false);
+  const [savedMsg,setSavedMsg]=useState("");
+
+  const lockedMatches=matches.filter(m=>now>=new Date(m.lock_time));
+  const m=lockedMatches.find(x=>String(x.id)===String(selectedMatchId));
+  const allPlayers=m?[...new Set([...(PLAYERS[m.home]||[]),...(PLAYERS[m.away]||[])])].sort():[];
+
+  const getOpts=(field)=>{
+    if(!m) return [];
+    if(field.type==="team") return [m.home,m.away];
+    if(field.type==="player") return allPlayers;
+    if(field.type==="wickets") return WICKET_RANGES;
+    if(field.type==="double") return DOUBLE_CATEGORIES;
+    if(field.type==="fantasy") return FANTASY_PLAYERS;
+    return [];
+  };
+
+  const startEdit=(playerName)=>{
+    const uname=playerName.toLowerCase().replace(/\s/g,"_");
+    const existing=allSelections[uname]?.[selectedMatchId]||{};
+    setEditForm({...EMPTY_SEL,...existing});
+    setEditingPlayer(playerName);
+  };
+
+  const cancelEdit=()=>{setEditingPlayer(null);setEditForm({});};
+
+  const handleSave=async(playerName)=>{
+    const uname=playerName.toLowerCase().replace(/\s/g,"_");
+    setSaving(true);
+    await onSaveSelection(uname,selectedMatchId,editForm);
+    setSaving(false);
+    setEditingPlayer(null);
+    setEditForm({});
+    setSavedMsg(`Saved ${playerName}'s selections`);
+    setTimeout(()=>setSavedMsg(""),3000);
+  };
+
+  const submitted=m?FANTASY_PLAYERS.filter(name=>allSelections[name.toLowerCase().replace(/\s/g,"_")]?.[selectedMatchId]):[];
+
+  return (
+    <div>
+      <div style={S.sectionTitle}>View & Edit Player Selections</div>
+      <div style={{marginBottom:"16px"}}>
+        <label style={S.label}>Select Match</label>
+        <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>{setSelectedMatchId(e.target.value);setEditingPlayer(null);setSavedMsg("");}}>
+          <option value="">-- Select a locked match --</option>
+          {lockedMatches.map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
+        </select>
+      </div>
+
+      {savedMsg&&<div style={{color:"#00c864",fontSize:"13px",marginBottom:"12px"}}>✓ {savedMsg}</div>}
+
+      {m&&(
+        <>
+          <div style={{fontSize:"13px",color:"#4db8ff",marginBottom:"14px"}}>📋 {submitted.length}/{FANTASY_PLAYERS.length} players submitted for M{m.id}: {m.home} vs {m.away}</div>
+          <div style={{...S.card,padding:"0",overflow:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px",minWidth:"1100px"}}>
+              <thead>
+                <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.03)"}}>
+                  <th style={{padding:"10px 12px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase",position:"sticky",left:0,background:"#0d1117",zIndex:2,minWidth:"110px"}}>Player</th>
+                  {SEL_FIELDS.map(f=><th key={f.key} style={{padding:"10px 8px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"10px",letterSpacing:"0.5px",textTransform:"uppercase",whiteSpace:"nowrap"}}>{f.label}</th>)}
+                  <th style={{padding:"10px 8px",textAlign:"center",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase",minWidth:"100px"}}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FANTASY_PLAYERS.map((name,i)=>{
+                  const uname=name.toLowerCase().replace(/\s/g,"_");
+                  const sel=allSelections[uname]?.[selectedMatchId];
+                  const hasSel=!!sel;
+                  const isEditing=editingPlayer===name;
+                  return (
+                    <tr key={name} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)",opacity:!hasSel&&!isEditing?0.5:1}}>
+                      <td style={{padding:"8px 12px",color:hasSel?"#e8e0d0":"#555",fontWeight:"bold",fontSize:"12px",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>
+                        {name}{hasSel&&<span style={{color:"#00c864",marginLeft:"4px",fontSize:"10px"}}>✓</span>}
+                      </td>
+                      {SEL_FIELDS.map(f=>(
+                        <td key={f.key} style={{padding:"6px 8px",whiteSpace:"nowrap"}}>
+                          {isEditing
+                            ?<select style={{...S.select,padding:"6px 8px",fontSize:"12px",minWidth:"90px"}} value={editForm[f.key]||""} onChange={e=>setEditForm(prev=>({...prev,[f.key]:e.target.value}))}>
+                              <option value="">--</option>
+                              {getOpts(f).map(o=><option key={o} value={o}>{o}</option>)}
+                            </select>
+                            :<span style={{color:sel?.[f.key]?"#e8e0d0":"#444",fontSize:"12px"}}>{sel?.[f.key]||"—"}</span>
+                          }
+                        </td>
+                      ))}
+                      <td style={{padding:"6px 8px",textAlign:"center",whiteSpace:"nowrap"}}>
+                        {isEditing
+                          ?<>
+                            <button style={{...S.btn("primary"),padding:"5px 10px",fontSize:"11px",marginRight:"4px"}} onClick={()=>handleSave(name)} disabled={saving}>{saving?"...":"Save"}</button>
+                            <button style={{...S.btn("ghost"),padding:"5px 10px",fontSize:"11px",border:"1px solid rgba(255,255,255,0.15)"}} onClick={cancelEdit}>Cancel</button>
+                          </>
+                          :<button style={{...S.btn("ghost"),padding:"5px 10px",fontSize:"11px",border:"1px solid rgba(255,165,0,0.3)",color:"#FFD700"}} onClick={()=>startEdit(name)}>Edit</button>
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {!m&&selectedMatchId===""&&<div style={{...S.card,textAlign:"center",color:"#555",padding:"40px"}}>Select a match above to view player selections</div>}
+    </div>
+  );
+}
+
+function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection}) {
   const [adminTab,setAdminTab]=useState("results");
   const [selectedMatch,setSelectedMatch]=useState(null);
   const [now]=useState(new Date());
@@ -525,9 +653,10 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
       <h1 style={S.h1}>Admin Panel</h1>
       <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
         <button style={S.navBtn(adminTab==="results")} onClick={()=>setAdminTab("results")}>Match Results</button>
+        <button style={S.navBtn(adminTab==="selections")} onClick={()=>setAdminTab("selections")}>Player Selections</button>
         <button style={S.navBtn(adminTab==="users")} onClick={()=>setAdminTab("users")}>Player Passwords</button>
       </div>
-      {adminTab==="users"?<UserManagementTab/>:(
+      {adminTab==="users"?<UserManagementTab/>:adminTab==="selections"?<PlayerSelectionsTab matches={matches} allSelections={allSelections} onSaveSelection={onSaveSelection}/>:(
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:"16px"}}>
           <div>
             <div style={S.sectionTitle}>Locked / Completed Matches</div>
@@ -676,6 +805,11 @@ export default function App() {
     setResults(prev=>({...prev,[matchId]:res}));
   },[]);
 
+  const onSaveSelection=useCallback(async(username,matchId,sel)=>{
+    await supa.upsert("selections",{username,match_id:matchId,winning_team:sel.winningTeam,best_batsman:sel.bestBatsman,best_bowler:sel.bestBowler,powerplay_winner:sel.powerplayWinner,dot_ball_bowler:sel.dotBallBowler,total_wickets:sel.totalWickets,duck_batsman:sel.duckBatsman,double_category:sel.doubleCategory,winning_horse:sel.winningHorse,losing_horse:sel.losingHorse,saved_at:new Date().toISOString()},"username,match_id");
+    setAllSelections(prev=>({...prev,[username]:{...(prev[username]||{}),[matchId]:sel}}));
+  },[]);
+
   const navItems=[
     {id:"matches",label:"🏏 Matches"},
     {id:"leaderboard",label:"🏆 Leaderboard"},
@@ -731,7 +865,7 @@ export default function App() {
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
           :page==="leaderboard"?<LeaderboardPage matches={matches} results={results} allSelections={allSelections}/>
           :page==="stats"?<MyStatsPage user={user} matches={matches} results={results} userSel={userSel}/>
-          :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections}/>
+          :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection}/>
           :null
         }
       </div>

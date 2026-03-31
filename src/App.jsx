@@ -466,11 +466,21 @@ function UserManagementTab() {
   );
 }
 
+
+
+const IField=({label,value,onChange,type="text",opts})=>{const isNum=type==="number";return(
+  <div>
+    <label style={S.label}>{label}</label>
+    {opts?<select style={S.select} value={value} onChange={e=>onChange(e.target.value)}><option value="">-- Select --</option>{opts.map(o=><option key={o} value={o}>{o}</option>)}</select>:<input style={{...S.input,fontSize:"16px"}} inputMode={isNum?"decimal":"text"} type="text" value={value} onChange={e=>onChange(e.target.value)}/>
+  }
+  </div>
+);};
+
 function AdminPage({matches,results,onSaveResult,allSelections}) {
   const [adminTab,setAdminTab]=useState("results");
   const [selectedMatch,setSelectedMatch]=useState(null);
   const [now]=useState(new Date());
-  const EMPTY_FORM={winningTeam:"",winByRuns:true,runMargin:0,wicketMargin:0,topScorer:"",topScorerRuns:0,bestBowler:"",bestBowlerPoints:0,powerplayWinner:"",powerplayScore:0,powerplayDiff:0,dotBallLeader:"",dotBalls:0,totalWickets:0,wicketsRange:"",duckBatsmen:[],matchTopPlayer:"",matchBottomPlayer:""};
+  const EMPTY_FORM={winningTeam:"",winByRuns:true,runMargin:"",wicketMargin:"",topScorer:"",topScorerRuns:"",bestBowler:"",bestBowlerPoints:"",powerplayWinner:"",powerplayScore:"",powerplayDiff:"",dotBallLeader:"",dotBalls:"",totalWickets:"",wicketsRange:"",duckBatsmen:[],matchTopPlayer:"",matchBottomPlayer:""};
   const [form,setForm]=useState(EMPTY_FORM);
   const [duckBatamenSelected,setDuckBatmenSelected]=useState("");
   const [saved,setSaved]=useState(false);
@@ -480,7 +490,12 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
   const selectMatch=(m)=>{
     setSelectedMatch(m);
     const ex=results[m.id];
-    setForm(ex?{...EMPTY_FORM,...ex,duckBatsmen:ex.duckBatsmen||[]}:EMPTY_FORM);
+    if(ex){
+      const numFields=["runMargin","wicketMargin","topScorerRuns","bestBowlerPoints","powerplayScore","powerplayDiff","dotBalls","totalWickets"];
+      const converted={...EMPTY_FORM,...ex,duckBatsmen:ex.duckBatsmen||[]};
+      numFields.forEach(f=>{if(converted[f]!=null)converted[f]=String(converted[f]);});
+      setForm(converted);
+    }else{setForm(EMPTY_FORM);}
     setDuckBatmenSelected("");
     setSaved(false);
   };
@@ -504,15 +519,6 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
   const allPlayers=m?[...new Set([...(PLAYERS[m.home]||[]),...(PLAYERS[m.away]||[])])].sort() :[];
   const submissionCount=selectedMatch?FANTASY_PLAYERS.filter(name=>allSelections[name.toLowerCase().replace(/\s/g,"_")]?.[selectedMatch.id]).length:0;
 
-  const IField=({label,k,type="text",opts})=>(
-    <div>
-      <label style={S.label}>{label}</label>
-      {opts
-        ?<select style={S.select} value={form[k]} onChange={e=>setF(k,e.target.value)}><option value="">-- Select --</option>{opts.map(o=><option key={o} value={o}>{o}</option>)}</select>
-        :<input style={{...S.input,fontSize:"16px"}} inputMode={type==="number"?"decimal":"text"} type={type} value={form[k]} onChange={e=>setF(k,type==="number"?parseFloat(e.target.value):e.target.value)}/>
-      }
-    </div>
-  );
 
   return (
     <div style={S.page}>
@@ -547,21 +553,21 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
 
                 <div style={S.sectionTitle}>Match Result</div>
                 <div style={{...S.grid2,marginBottom:"14px"}}>
-                  <IField label="Winning Team" k="winningTeam" opts={[m.home,m.away]}/>
+                  <IField label="Winning Team" value={form.winningTeam} onChange={v=>setF("winningTeam",v)} opts={[m.home,m.away]}/>
                   <div>
                     <label style={S.label}>Win Type</label>
                     <select style={S.select} value={form.winByRuns?"runs":"wickets"} onChange={e=>setF("winByRuns",e.target.value==="runs")}>
                       <option value="runs">By Runs</option><option value="wickets">By Wickets</option>
                     </select>
                   </div>
-                  <IField label="Run Margin" k="runMargin" type="number"/>
-                  <IField label="Wicket Margin" k="wicketMargin" type="number"/>
+                  <IField label="Run Margin" value={form.runMargin} onChange={v=>setF("runMargin",v)} type="number"/>
+                  <IField label="Wicket Margin" value={form.wicketMargin} onChange={v=>setF("wicketMargin",v)} type="number"/>
                 </div>
 
                 <div style={S.sectionTitle}>Batting</div>
                 <div style={{...S.grid2,marginBottom:"14px"}}>
-                  <IField label="Top Scorer" k="topScorer" opts={allPlayers}/>
-                  <IField label="Runs Scored" k="topScorerRuns" type="number"/>
+                  <IField label="Top Scorer" value={form.topScorer} onChange={v=>setF("topScorer",v)} opts={allPlayers}/>
+                  <IField label="Runs Scored" value={form.topScorerRuns} onChange={v=>setF("topScorerRuns",v)} type="number"/>
                   <div style={{gridColumn:"1/-1"}}>
                     <label style={S.label}>Duck Batsmen</label>
                     <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
@@ -584,25 +590,25 @@ function AdminPage({matches,results,onSaveResult,allSelections}) {
 
                 <div style={S.sectionTitle}>Bowling</div>
                 <div style={{...S.grid2,marginBottom:"14px"}}>
-                  <IField label="Best Bowler" k="bestBowler" opts={allPlayers}/>
-                  <IField label="Bowler Points" k="bestBowlerPoints" type="number"/>
-                  <IField label="Dot-Ball Leader" k="dotBallLeader" opts={allPlayers}/>
-                  <IField label="Dot Balls Bowled" k="dotBalls" type="number"/>
+                  <IField label="Best Bowler" value={form.bestBowler} onChange={v=>setF("bestBowler",v)} opts={allPlayers}/>
+                  <IField label="Bowler Points" value={form.bestBowlerPoints} onChange={v=>setF("bestBowlerPoints",v)} type="number"/>
+                  <IField label="Dot-Ball Leader" value={form.dotBallLeader} onChange={v=>setF("dotBallLeader",v)} opts={allPlayers}/>
+                  <IField label="Dot Balls Bowled" value={form.dotBalls} onChange={v=>setF("dotBalls",v)} type="number"/>
                 </div>
 
                 <div style={S.sectionTitle}>Powerplay & Wickets</div>
                 <div style={{...S.grid2,marginBottom:"14px"}}>
-                  <IField label="Powerplay Winner" k="powerplayWinner" opts={[m.home,m.away]}/>
-                  <IField label="Powerplay Score" k="powerplayScore" type="number"/>
-                  <IField label="Powerplay Diff" k="powerplayDiff" type="number"/>
-                  <IField label="Total Wickets Fallen" k="totalWickets" type="number"/>
-                  <IField label="Wickets Range" k="wicketsRange" opts={WICKET_RANGES}/>
+                  <IField label="Powerplay Winner" value={form.powerplayWinner} onChange={v=>setF("powerplayWinner",v)} opts={[m.home,m.away]}/>
+                  <IField label="Powerplay Score" value={form.powerplayScore} onChange={v=>setF("powerplayScore",v)} type="number"/>
+                  <IField label="Powerplay Diff" value={form.powerplayDiff} onChange={v=>setF("powerplayDiff",v)} type="number"/>
+                  <IField label="Total Wickets Fallen" value={form.totalWickets} onChange={v=>setF("totalWickets",v)} type="number"/>
+                  <IField label="Wickets Range" value={form.wicketsRange} onChange={v=>setF("wicketsRange",v)} opts={WICKET_RANGES}/>
                 </div>
 
                 <div style={S.sectionTitle}>Horse Results</div>
                 <div style={{...S.grid2,marginBottom:"16px"}}>
-                  <IField label="🏆 Match Top Scorer (fantasy player)" k="matchTopPlayer" opts={FANTASY_PLAYERS}/>
-                  <IField label="💀 Match Bottom Scorer (fantasy player)" k="matchBottomPlayer" opts={FANTASY_PLAYERS}/>
+                  <IField label="🏆 Match Top Scorer (fantasy player)" value={form.matchTopPlayer} onChange={v=>setF("matchTopPlayer",v)} opts={FANTASY_PLAYERS}/>
+                  <IField label="💀 Match Bottom Scorer (fantasy player)" value={form.matchBottomPlayer} onChange={v=>setF("matchBottomPlayer",v)} opts={FANTASY_PLAYERS}/>
                 </div>
 
                 <div style={{display:"flex",gap:"12px",alignItems:"center",flexWrap:"wrap"}}>
@@ -692,7 +698,7 @@ export default function App() {
 
   return (
     <div style={S.app}>
-      <style>{`@keyframes shimmer{0%{background-position:0% center}100%{background-position:200% center}}select option{background:#1a1a2e;color:#e8e0d0;}::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:#0a0a0f;}::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}*{box-sizing:border-box;}input,select{font-size:16px!important;}`}</style>
+      <style>{`@keyframes shimmer{0%{background-position:0% center}100%{background-position:200% center}}select option{background:#1a1a2e;color:#e8e0d0;}::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:#0a0a0f;}::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}*{box-sizing:border-box;}input,select{font-size:16px!important;}input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}input[type="number"]{-moz-appearance:textfield;}`}</style>
       <div style={S.noise}/>
       <div style={S.content}>
         <header style={S.header}>

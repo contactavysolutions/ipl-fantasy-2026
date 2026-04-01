@@ -95,24 +95,26 @@ function calcPoints(sel, res) {
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const S = {
-  app:{minHeight:"100vh",background:"linear-gradient(135deg,#0a0a0f 0%,#0d1117 50%,#0a0f0d 100%)",fontFamily:"'Georgia',serif",color:"#e8e0d0",position:"relative"},
-  noise:{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")",opacity:0.4},
-  content:{position:"relative",zIndex:1},
-  header:{borderBottom:"1px solid rgba(255,165,0,0.15)",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(0,0,0,0.95)",backdropFilter:"blur(12px)",position:"sticky",top:0,zIndex:100},
-  logo:{fontSize:"17px",fontWeight:"bold",letterSpacing:"2px",background:"linear-gradient(90deg,#FF6B00,#FFD700,#FF6B00)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundSize:"200% auto",animation:"shimmer 3s linear infinite"},
-  page:{maxWidth:"960px",margin:"0 auto",padding:"20px 12px"},
-  card:{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"12px",padding:"20px",backdropFilter:"blur(4px)"},
-  navBtn:(a)=>({padding:"7px 16px",borderRadius:"6px",border:"none",cursor:"pointer",fontSize:"13px",fontFamily:"'Georgia',serif",background:a?"rgba(255,165,0,0.2)":"transparent",color:a?"#FFD700":"#888",borderBottom:a?"2px solid #FFD700":"2px solid transparent",transition:"all 0.2s"}),
-  teamBadge:(t)=>({display:"inline-block",padding:"4px 10px",borderRadius:"6px",fontSize:"13px",fontWeight:"bold",letterSpacing:"1px",background:(TEAMS[t]?.color||"#333")+"33",color:TEAMS[t]?.accent||"#fff",border:`1px solid ${(TEAMS[t]?.color||"#333")}55`}),
-  statusPill:(st)=>({display:"inline-block",padding:"3px 10px",borderRadius:"20px",fontSize:"11px",background:st==="completed"?"rgba(0,200,100,0.15)":st==="locked"?"rgba(255,100,100,0.15)":st==="submitted"?"rgba(0,150,255,0.15)":"rgba(255,165,0,0.15)",color:st==="completed"?"#00c864":st==="locked"?"#ff6b6b":st==="submitted"?"#4db8ff":"#FFD700",border:`1px solid ${st==="completed"?"#00c86433":st==="locked"?"#ff6b6b33":st==="submitted"?"#4db8ff33":"#FFD70033"}`}),
-  h1:{fontSize:"26px",fontWeight:"bold",marginBottom:"8px",color:"#FFD700"},
-  label:{display:"block",fontSize:"12px",color:"#888",marginBottom:"6px",letterSpacing:"0.5px",textTransform:"uppercase"},
-  select:{width:"100%",padding:"10px 12px",borderRadius:"8px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",color:"#e8e0d0",fontSize:"16px",outline:"none",cursor:"pointer",fontFamily:"'Georgia',serif"},
-  input:{width:"100%",padding:"10px 12px",borderRadius:"8px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",color:"#e8e0d0",fontSize:"16px",outline:"none",fontFamily:"'Georgia',serif",boxSizing:"border-box"},
-  btn:(v="primary")=>({padding:"11px 24px",borderRadius:"8px",border:"none",cursor:"pointer",fontSize:"14px",fontWeight:"bold",fontFamily:"'Georgia',serif",background:v==="primary"?"linear-gradient(135deg,#FF6B00,#FFD700)":v==="danger"?"rgba(255,80,80,0.2)":"rgba(255,255,255,0.08)",color:v==="primary"?"#000":v==="danger"?"#ff6b6b":"#e8e0d0",transition:"all 0.2s"}),
+  app:{minHeight:"100vh",background:"linear-gradient(160deg,#080b12 0%,#0c1220 40%,#0a0f1a 100%)",fontFamily:"'Inter',sans-serif",color:"#e2e8f0",position:"relative"},
+  noise:{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E\")",opacity:0.3},
+  content:{position:"relative",zIndex:1,paddingBottom:"72px"},
+  header:{padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(8,11,18,0.85)",backdropFilter:"blur(20px)",position:"sticky",top:0,zIndex:100,borderBottom:"1px solid rgba(255,255,255,0.06)"},
+  logo:{fontSize:"16px",fontWeight:800,letterSpacing:"1.5px",background:"linear-gradient(135deg,#FF8C00,#FFD700)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"},
+  page:{maxWidth:"960px",margin:"0 auto",padding:"20px 16px"},
+  card:{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"16px",padding:"20px",backdropFilter:"blur(8px)"},
+  navBtn:(a)=>({padding:"8px 16px",borderRadius:"8px",border:"none",cursor:"pointer",fontSize:"13px",fontWeight:a?600:400,fontFamily:"'Inter',sans-serif",background:a?"rgba(255,140,0,0.15)":"transparent",color:a?"#FFD700":"#64748b",transition:"all 0.2s ease"}),
+  teamBadge:(t)=>({display:"inline-flex",alignItems:"center",padding:"4px 10px",borderRadius:"8px",fontSize:"12px",fontWeight:700,letterSpacing:"0.5px",background:(TEAMS[t]?.color||"#333")+"20",color:TEAMS[t]?.accent||"#fff",border:`1px solid ${(TEAMS[t]?.color||"#333")}40`}),
+  statusPill:(st)=>({display:"inline-flex",alignItems:"center",gap:"4px",padding:"4px 10px",borderRadius:"20px",fontSize:"11px",fontWeight:600,background:st==="completed"?"rgba(34,197,94,0.12)":st==="locked"?"rgba(239,68,68,0.12)":st==="submitted"?"rgba(59,130,246,0.12)":"rgba(255,140,0,0.12)",color:st==="completed"?"#4ade80":st==="locked"?"#f87171":st==="submitted"?"#60a5fa":"#fbbf24",border:`1px solid ${st==="completed"?"rgba(34,197,94,0.2)":st==="locked"?"rgba(239,68,68,0.2)":st==="submitted"?"rgba(59,130,246,0.2)":"rgba(255,140,0,0.2)"}`}),
+  h1:{fontSize:"24px",fontWeight:800,marginBottom:"6px",color:"#f8fafc",letterSpacing:"-0.5px"},
+  label:{display:"block",fontSize:"11px",color:"#64748b",marginBottom:"6px",letterSpacing:"0.5px",textTransform:"uppercase",fontWeight:600},
+  select:{width:"100%",padding:"10px 12px",borderRadius:"10px",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"14px",outline:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"border-color 0.2s"},
+  input:{width:"100%",padding:"10px 12px",borderRadius:"10px",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"14px",outline:"none",fontFamily:"'Inter',sans-serif",boxSizing:"border-box",transition:"border-color 0.2s"},
+  btn:(v="primary")=>({padding:"11px 24px",borderRadius:"10px",border:"none",cursor:"pointer",fontSize:"14px",fontWeight:700,fontFamily:"'Inter',sans-serif",background:v==="primary"?"linear-gradient(135deg,#FF8C00,#FFD700)":v==="danger"?"rgba(239,68,68,0.15)":"rgba(255,255,255,0.06)",color:v==="primary"?"#000":v==="danger"?"#f87171":"#e2e8f0",transition:"all 0.2s ease",border:v==="ghost"?"1px solid rgba(255,255,255,0.1)":"none"}),
   grid2:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:"16px"},
-  sectionTitle:{fontSize:"11px",letterSpacing:"2px",textTransform:"uppercase",color:"#FF6B00",marginBottom:"12px",fontWeight:"bold"},
-  logoutBtn:{background:"rgba(255,80,80,0.15)",border:"1px solid rgba(255,100,100,0.5)",color:"#ff6b6b",borderRadius:"6px",padding:"7px 14px",cursor:"pointer",fontSize:"13px",fontWeight:"bold",fontFamily:"'Georgia',serif"},
+  sectionTitle:{fontSize:"11px",letterSpacing:"1.5px",textTransform:"uppercase",color:"#FF8C00",marginBottom:"12px",fontWeight:700},
+  logoutBtn:{background:"transparent",border:"1px solid rgba(239,68,68,0.3)",color:"#f87171",borderRadius:"8px",padding:"7px 14px",cursor:"pointer",fontSize:"13px",fontWeight:600,fontFamily:"'Inter',sans-serif",transition:"all 0.2s"},
+  bottomNav:{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"rgba(8,11,18,0.95)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(255,255,255,0.08)",display:"flex",justifyContent:"space-around",alignItems:"center",padding:"8px 0 env(safe-area-inset-bottom, 10px)",height:"72px"},
+  tabBtn:(a)=>({display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",background:"none",border:"none",cursor:"pointer",padding:"6px 16px",color:a?"#fbbf24":"#475569",transition:"all 0.2s",position:"relative",fontFamily:"'Inter',sans-serif"}),
 };
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
@@ -137,27 +139,36 @@ function LoginPage({onLogin}) {
 
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+      <style>{`
+        @keyframes floatLogo{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+        .login-card{position:relative;overflow:hidden;}
+        .login-card::before{content:'';position:absolute;inset:-1px;borderRadius:17px;padding:1px;background:linear-gradient(135deg,rgba(255,140,0,0.3),rgba(255,215,0,0.1),rgba(255,140,0,0.05));mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;-webkit-mask-composite:xor;pointer-events:none;}
+        .login-input:focus{border-color:rgba(255,140,0,0.4)!important;box-shadow:0 0 0 3px rgba(255,140,0,0.08)!important;}
+        .login-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(255,140,0,0.25)!important;}
+        .login-btn:active{transform:translateY(0);}
+      `}</style>
       <div style={{width:"100%",maxWidth:"380px"}}>
-        <div style={{textAlign:"center",marginBottom:"40px"}}>
-          <div style={{...S.logo,fontSize:"32px",display:"block",marginBottom:"8px"}}>🏏 IPL FANTASY</div>
-          <div style={{color:"#666",fontSize:"14px"}}>2026 Season — Friends League</div>
+        <div style={{textAlign:"center",marginBottom:"40px",animation:"floatLogo 4s ease-in-out infinite"}}>
+          <div style={{fontSize:"40px",marginBottom:"8px"}}>🏏</div>
+          <div style={{...S.logo,fontSize:"28px",display:"block",marginBottom:"6px"}}>IPL FANTASY</div>
+          <div style={{color:"#475569",fontSize:"13px",fontWeight:500}}>2026 Season — Friends League</div>
         </div>
-        <div style={{...S.card,padding:"32px"}}>
+        <div className="login-card" style={{...S.card,padding:"32px",background:"rgba(255,255,255,0.03)"}}>
           <div style={{marginBottom:"20px"}}>
             <label style={S.label}>Username</label>
-            <input style={S.input} placeholder="e.g. sandeep" value={username} onChange={e=>setUsername(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
-            <div style={{fontSize:"11px",color:"#555",marginTop:"4px"}}>Lowercase, spaces as underscore e.g. santhosh_male</div>
+            <input className="login-input" style={S.input} placeholder="e.g. sandeep" value={username} onChange={e=>setUsername(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
+            <div style={{fontSize:"11px",color:"#475569",marginTop:"4px"}}>Lowercase, spaces as underscore e.g. santhosh_male</div>
           </div>
           <div style={{marginBottom:"24px"}}>
             <label style={S.label}>Password</label>
-            <input style={S.input} type="password" placeholder="Your password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
+            <input className="login-input" style={S.input} type="password" placeholder="Your password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
           </div>
-          {error&&<div style={{color:"#ff6b6b",fontSize:"13px",marginBottom:"16px"}}>{error}</div>}
-          <button style={{...S.btn("primary"),width:"100%"}} onClick={handleLogin} disabled={loading}>
+          {error&&<div style={{color:"#f87171",fontSize:"13px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"6px"}}>⚠ {error}</div>}
+          <button className="login-btn" style={{...S.btn("primary"),width:"100%",padding:"12px",fontSize:"15px"}} onClick={handleLogin} disabled={loading}>
             {loading?"Signing in...":"Sign In"}
           </button>
         </div>
-        <div style={{textAlign:"center",marginTop:"16px",fontSize:"12px",color:"#444"}}>
+        <div style={{textAlign:"center",marginTop:"20px",fontSize:"12px",color:"#334155"}}>
           Forgot your password? Ask the admin to reset it.
         </div>
       </div>
@@ -173,6 +184,17 @@ function getStatus(match, now, results, userSel) {
   return "open";
 }
 
+// ─── TEAM LOGO COMPONENT ──────────────────────────────────────────────────────
+function TeamLogo({team,size=48}) {
+  const t=TEAMS[team]||{color:"#333",accent:"#fff"};
+  return (
+    <div style={{width:size,height:size,borderRadius:"50%",background:`linear-gradient(135deg, ${t.color} 0%, ${t.color}dd 60%, ${t.accent}44 100%)`,display:"flex",alignItems:"center",justifyContent:"center",border:`2px solid ${t.color}88`,boxShadow:`0 0 12px ${t.color}33, inset 0 -2px 6px rgba(0,0,0,0.3)`,flexShrink:0,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,background:`radial-gradient(circle at 35% 30%, rgba(255,255,255,0.25) 0%, transparent 60%)`,borderRadius:"50%"}}/>
+      <span style={{fontSize:size*0.3,fontWeight:900,letterSpacing:"1px",color:t.accent,textShadow:`0 1px 3px rgba(0,0,0,0.5)`,position:"relative",zIndex:1,fontFamily:"'Arial Black','Georgia',serif"}}>{team}</span>
+    </div>
+  );
+}
+
 // ─── MATCHES LIST ─────────────────────────────────────────────────────────────
 function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
   const [now]=useState(new Date());
@@ -184,10 +206,20 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
     if(filter==="completed") return st==="completed";
     return true;
   });
+
+  const stBorder=(st)=>st==="completed"?"rgba(0,200,100,0.25)":st==="locked"?"rgba(255,100,100,0.2)":st==="submitted"?"rgba(0,150,255,0.2)":"rgba(255,165,0,0.15)";
+  const stBg=(st)=>st==="completed"?"rgba(0,200,100,0.03)":st==="locked"?"rgba(255,80,80,0.03)":st==="submitted"?"rgba(0,150,255,0.03)":"rgba(255,255,255,0.03)";
+
   return (
     <div style={S.page}>
-      <style>{`.mcard:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3);transition:all 0.2s}`}</style>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"12px",marginBottom:"20px"}}>
+      <style>{`
+        .mcard2{transition:all 0.25s ease;cursor:pointer;}
+        .mcard2:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.4)!important;}
+        .mcard2:active{transform:translateY(0);box-shadow:none!important;}
+        .vs-glow{animation:vsGlow 2s ease-in-out infinite alternate;}
+        @keyframes vsGlow{0%{text-shadow:0 0 8px rgba(255,165,0,0.3)}100%{text-shadow:0 0 16px rgba(255,165,0,0.6)}}
+      `}</style>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"12px",marginBottom:"24px"}}>
         <div><h1 style={S.h1}>Matches</h1><p style={{color:"#666",fontSize:"13px"}}>IPL 2026 · 70 matches</p></div>
         <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
           {["all","open","locked","completed"].map(f=>(
@@ -198,21 +230,60 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
       {filtered.map(match=>{
         const st=getStatus(match,now,results,userSel);
         const res=results[match.id];
+        const homeT=TEAMS[match.home]||{};
+        const awayT=TEAMS[match.away]||{};
+        const isWinnerHome=res?.winningTeam===match.home;
+        const isWinnerAway=res?.winningTeam===match.away;
         return (
-          <div key={match.id} className="mcard" style={{...S.card,marginBottom:"8px",cursor:"pointer",background:st==="completed"?"rgba(0,180,80,0.04)":st==="locked"?"rgba(255,100,100,0.03)":"rgba(255,255,255,0.03)",borderColor:st==="completed"?"rgba(0,180,80,0.15)":st==="locked"?"rgba(255,100,100,0.1)":"rgba(255,255,255,0.07)"}} onClick={()=>onSelectMatch(match)}>
-            <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
-                <span style={{fontSize:"11px",color:"#555"}}>M{match.id}</span>
-                <span style={S.teamBadge(match.home)}>{match.home}</span>
-                <span style={{color:"#555",fontSize:"12px"}}>vs</span>
-                <span style={S.teamBadge(match.away)}>{match.away}</span>
-                <span style={S.statusPill(st)}>{st==="submitted"?"✓ Submitted":st==="completed"?"✓ Done":st==="locked"?"🔒 Locked":"Open"}</span>
-              </div>
-              <div style={{display:"flex",gap:"10px",flexWrap:"wrap"}}>
+          <div key={match.id} className="mcard2" onClick={()=>onSelectMatch(match)}
+            style={{background:stBg(st),border:`1px solid ${stBorder(st)}`,borderRadius:"14px",padding:"16px 20px",marginBottom:"10px",backdropFilter:"blur(4px)",position:"relative",overflow:"hidden"}}>
+            {/* Subtle team color gradient at edges */}
+            <div style={{position:"absolute",top:0,left:0,bottom:0,width:"4px",background:`linear-gradient(180deg, ${homeT.color||'#333'}, transparent)`,borderRadius:"14px 0 0 14px"}}/>
+            <div style={{position:"absolute",top:0,right:0,bottom:0,width:"4px",background:`linear-gradient(180deg, ${awayT.color||'#333'}, transparent)`,borderRadius:"0 14px 14px 0"}}/>
+
+            {/* Header: Match number + status + date */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                <span style={{fontSize:"11px",color:"#555",fontWeight:"bold",letterSpacing:"1px"}}>M{match.id}</span>
                 <span style={{fontSize:"12px",color:"#555"}}>{match.date} · {match.time_label}</span>
-                {res&&<span style={{fontSize:"12px",color:"#00c864"}}>→ {res.winningTeam} won{res.runMargin?` by ${res.runMargin} runs`:res.wicketMargin?` by ${res.wicketMargin} wkts`:""}</span>}
+              </div>
+              <span style={S.statusPill(st)}>{st==="submitted"?"✓ Submitted":st==="completed"?"✓ Done":st==="locked"?"🔒 Locked":"🟢 Open"}</span>
+            </div>
+
+            {/* Main matchup: Logo - Team - VS - Team - Logo */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"0",padding:"4px 0"}}>
+              {/* Home team */}
+              <div style={{flex:1,display:"flex",alignItems:"center",gap:"12px",justifyContent:"flex-end",minWidth:0}}>
+                <div style={{textAlign:"right",minWidth:0}}>
+                  <div style={{fontSize:"16px",fontWeight:"bold",color:isWinnerHome?"#00c864":st==="completed"&&!isWinnerHome?"#666":"#e8e0d0",letterSpacing:"0.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{match.home}</div>
+                  <div style={{fontSize:"11px",color:"#555",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{TEAMS[match.home]?.name||""}</div>
+                </div>
+                <TeamLogo team={match.home} size={46}/>
+              </div>
+
+              {/* VS Badge */}
+              <div style={{margin:"0 16px",flexShrink:0}}>
+                <div className="vs-glow" style={{width:"36px",height:"36px",borderRadius:"50%",background:"linear-gradient(135deg, rgba(255,165,0,0.15), rgba(255,215,0,0.1))",border:"1px solid rgba(255,165,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:"11px",fontWeight:900,color:"#FFD700",letterSpacing:"1px"}}>VS</span>
+                </div>
+              </div>
+
+              {/* Away team */}
+              <div style={{flex:1,display:"flex",alignItems:"center",gap:"12px",justifyContent:"flex-start",minWidth:0}}>
+                <TeamLogo team={match.away} size={46}/>
+                <div style={{textAlign:"left",minWidth:0}}>
+                  <div style={{fontSize:"16px",fontWeight:"bold",color:isWinnerAway?"#00c864":st==="completed"&&!isWinnerAway?"#666":"#e8e0d0",letterSpacing:"0.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{match.away}</div>
+                  <div style={{fontSize:"11px",color:"#555",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{TEAMS[match.away]?.name||""}</div>
+                </div>
               </div>
             </div>
+
+            {/* Result line */}
+            {res&&(
+              <div style={{textAlign:"center",marginTop:"10px",paddingTop:"10px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+                <span style={{fontSize:"12px",color:"#00c864",fontWeight:"bold"}}>🏆 {res.winningTeam} won{res.runMargin?` by ${res.runMargin} runs`:res.wicketMargin?` by ${res.wicketMargin} wickets`:""}</span>
+              </div>
+            )}
           </div>
         );
       })}
@@ -337,30 +408,61 @@ function LeaderboardPage({matches,results,allSelections}) {
     let total=0,matchCount=0;
     completed.forEach(m=>{if(uSel[m.id]){total+=calcPoints(uSel[m.id],results[m.id]).total;matchCount++;}});
     return {name,total,matchCount};
-  }).filter(s=>s.matchCount>0).sort((a,b)=>b.total-a.total);
+  }).sort((a,b)=>b.total-a.total);
   const medals=["🥇","🥈","🥉"];
+  const maxPts=scores[0]?.total||1;
   return (
     <div style={S.page}>
-      <h1 style={S.h1}>Season Leaderboard</h1>
-      <p style={{color:"#666",fontSize:"13px",marginBottom:"20px"}}>{completed.length} matches completed · Cumulative points</p>
-      {scores.length===0
-        ?<div style={{...S.card,textAlign:"center",color:"#555",padding:"48px"}}>No completed matches yet 🏏</div>
-        :scores.map((s,i)=>(
-          <div key={s.name} style={{...S.card,marginBottom:"8px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{display:"flex",alignItems:"center",gap:"12px",flex:1,minWidth:0}}>
-              <span style={{fontSize:i<3?"22px":"16px",minWidth:"32px",textAlign:"center",flexShrink:0}}>{medals[i]||`#${i+1}`}</span>
-              <div style={{minWidth:0}}>
-                <div style={{fontWeight:"bold",color:i===0?"#FFD700":"#e8e0d0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
-                <div style={{fontSize:"12px",color:"#555"}}>{s.matchCount} matches</div>
+      <style>{`
+        .lb-row{transition:all 0.2s ease;}
+        .lb-row:hover{background:rgba(255,255,255,0.06)!important;}
+      `}</style>
+      <h1 style={S.h1}>Leaderboard</h1>
+      <p style={{color:"#64748b",fontSize:"13px",marginBottom:"24px"}}>{completed.length} matches completed · Season standings</p>
+
+      {/* Top 3 Podium */}
+      {scores.length>=3&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"20px"}}>
+          {scores.slice(0,3).map((s,i)=>{
+            const colors=[
+              {bg:"linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,140,0,0.06))",border:"rgba(255,215,0,0.25)",text:"#fbbf24"},
+              {bg:"linear-gradient(135deg,rgba(192,192,192,0.1),rgba(148,163,184,0.06))",border:"rgba(148,163,184,0.2)",text:"#94a3b8"},
+              {bg:"linear-gradient(135deg,rgba(205,127,50,0.1),rgba(180,120,60,0.06))",border:"rgba(205,127,50,0.2)",text:"#d4a574"},
+            ][i];
+            return (
+              <div key={s.name} style={{background:colors.bg,border:`1px solid ${colors.border}`,borderRadius:"16px",padding:"20px 12px",textAlign:"center"}}>
+                <div style={{fontSize:"28px",marginBottom:"6px"}}>{medals[i]}</div>
+                <div style={{fontSize:"14px",fontWeight:700,color:"#f8fafc",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                <div style={{fontSize:"11px",color:"#64748b",marginBottom:"8px"}}>{s.matchCount} matches</div>
+                <div style={{fontSize:"24px",fontWeight:800,color:colors.text}}>{s.total}</div>
+                <div style={{fontSize:"10px",color:"#64748b",fontWeight:600,letterSpacing:"0.5px"}}>POINTS</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Remaining players */}
+      <div style={{...S.card,padding:"0",overflow:"hidden"}}>
+        {scores.slice(scores.length>=3?3:0).map((s,i)=>{
+          const rank=scores.length>=3?i+4:i+1;
+          const barW=maxPts>0?Math.max((s.total/maxPts)*100,2):0;
+          return (
+            <div key={s.name} className="lb-row" style={{display:"flex",alignItems:"center",padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.04)",gap:"12px"}}>
+              <span style={{fontSize:"13px",fontWeight:700,color:"#64748b",minWidth:"28px",textAlign:"center"}}>#{rank}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"4px"}}>
+                  <span style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+                  <span style={{fontSize:"14px",fontWeight:700,color:"#fbbf24",flexShrink:0,marginLeft:"8px"}}>{s.total}</span>
+                </div>
+                <div style={{height:"3px",background:"rgba(255,255,255,0.06)",borderRadius:"2px",overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${barW}%`,background:"linear-gradient(90deg,#FF8C00,#fbbf24)",borderRadius:"2px",transition:"width 0.5s ease"}}/>
+                </div>
               </div>
             </div>
-            <div style={{textAlign:"right",flexShrink:0}}>
-              <div style={{fontSize:"20px",fontWeight:"bold",color:i===0?"#FFD700":"#e8e0d0"}}>{s.total}</div>
-              <div style={{fontSize:"11px",color:"#555"}}>pts</div>
-            </div>
-          </div>
-        ))
-      }
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -369,36 +471,44 @@ function LeaderboardPage({matches,results,allSelections}) {
 function MyStatsPage({user,matches,results,userSel}) {
   const completed=matches.filter(m=>results[m.id]&&userSel[m.id]);
   const totalPoints=completed.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id]).total,0);
+  const statCards=[
+    {icon:"🎯",label:"Total Points",val:totalPoints,color:"#fbbf24"},
+    {icon:"🏏",label:"Matches",val:completed.length,color:"#60a5fa"},
+    {icon:"📈",label:"Avg/Match",val:completed.length?Math.round(totalPoints/completed.length):0,color:"#4ade80"},
+  ];
   return (
     <div style={S.page}>
       <h1 style={S.h1}>My Stats</h1>
-      <p style={{color:"#666",fontSize:"13px",marginBottom:"16px"}}>{user.displayName}</p>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:"12px",marginBottom:"24px"}}>
-        {[{label:"Total Points",val:totalPoints},{label:"Matches",val:completed.length},{label:"Avg/Match",val:completed.length?Math.round(totalPoints/completed.length):0}].map(({label,val})=>(
-          <div key={label} style={{...S.card,textAlign:"center"}}>
-            <div style={{fontSize:"26px",fontWeight:"bold",color:"#FFD700"}}>{val}</div>
-            <div style={{fontSize:"11px",color:"#666",marginTop:"4px"}}>{label}</div>
+      <p style={{color:"#64748b",fontSize:"13px",marginBottom:"20px"}}>{user.displayName}</p>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"24px"}}>
+        {statCards.map(({icon,label,val,color})=>(
+          <div key={label} style={{...S.card,textAlign:"center",padding:"16px 8px"}}>
+            <div style={{fontSize:"20px",marginBottom:"4px"}}>{icon}</div>
+            <div style={{fontSize:"24px",fontWeight:800,color}}>{val}</div>
+            <div style={{fontSize:"10px",color:"#64748b",marginTop:"2px",fontWeight:600,letterSpacing:"0.5px",textTransform:"uppercase"}}>{label}</div>
           </div>
         ))}
       </div>
       {completed.length===0
-        ?<div style={{...S.card,textAlign:"center",color:"#555",padding:"48px"}}>No completed matches yet. Make your selections!</div>
+        ?<div style={{...S.card,textAlign:"center",color:"#475569",padding:"48px"}}>No completed matches yet. Make your selections!</div>
         :completed.map(m=>{
           const {breakdown,total}=calcPoints(userSel[m.id],results[m.id]);
           return (
             <div key={m.id} style={{...S.card,marginBottom:"10px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px",flexWrap:"wrap",gap:"8px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",flexWrap:"wrap",gap:"8px"}}>
                 <div style={{display:"flex",gap:"8px",alignItems:"center",flexWrap:"wrap"}}>
-                  <span style={{color:"#555",fontSize:"12px"}}>M{m.id}</span>
-                  <span style={S.teamBadge(m.home)}>{m.home}</span>
-                  <span style={{color:"#555"}}>vs</span>
-                  <span style={S.teamBadge(m.away)}>{m.away}</span>
+                  <span style={{color:"#64748b",fontSize:"12px",fontWeight:600}}>M{m.id}</span>
+                  <TeamLogo team={m.home} size={24}/>
+                  <span style={{fontSize:"12px",fontWeight:600,color:"#e2e8f0"}}>{m.home}</span>
+                  <span style={{color:"#475569",fontSize:"11px"}}>vs</span>
+                  <TeamLogo team={m.away} size={24}/>
+                  <span style={{fontSize:"12px",fontWeight:600,color:"#e2e8f0"}}>{m.away}</span>
                 </div>
-                <div style={{fontSize:"20px",fontWeight:"bold",color:"#FFD700"}}>{total} pts</div>
+                <div style={{fontSize:"18px",fontWeight:800,color:"#fbbf24"}}>{total} pts</div>
               </div>
               <div style={{display:"flex",flexWrap:"wrap",gap:"5px"}}>
                 {Object.entries(breakdown).filter(([k])=>!k.startsWith("_")).map(([k,v])=>(
-                  <span key={k} style={{fontSize:"11px",background:v>0?"rgba(0,200,100,0.08)":"rgba(255,100,100,0.08)",color:v>0?"#00c864":"#ff6b6b",padding:"3px 7px",borderRadius:"4px",border:`1px solid ${v>0?"rgba(0,200,100,0.15)":"rgba(255,100,100,0.15)"}`}}>{k}: {v}</span>
+                  <span key={k} style={{fontSize:"11px",fontWeight:500,background:v>0?"rgba(34,197,94,0.1)":"rgba(239,68,68,0.1)",color:v>0?"#4ade80":"#f87171",padding:"3px 8px",borderRadius:"6px",border:`1px solid ${v>0?"rgba(34,197,94,0.15)":"rgba(239,68,68,0.15)"}`}}>{k}: {v}</span>
                 ))}
               </div>
             </div>
@@ -811,55 +921,57 @@ export default function App() {
   },[]);
 
   const navItems=[
-    {id:"matches",label:"🏏 Matches"},
-    {id:"leaderboard",label:"🏆 Leaderboard"},
-    {id:"stats",label:"📊 My Stats"},
-    ...(user?.isAdmin?[{id:"admin",label:"⚙️ Admin"}]:[]),
+    {id:"matches",icon:"🏏",label:"Matches"},
+    {id:"leaderboard",icon:"🏆",label:"Board"},
+    {id:"stats",icon:"📊",label:"Stats"},
+    ...(user?.isAdmin?[{id:"admin",icon:"⚙️",label:"Admin"}]:[]),
   ];
 
   if(!user) return (
-    <div style={S.app}><div style={S.noise}/><div style={S.content}><LoginPage onLogin={login}/></div></div>
+    <div style={S.app}><div style={S.noise}/><div style={{...S.content,paddingBottom:0}}><LoginPage onLogin={login}/></div></div>
   );
 
   if(loading) return (
     <div style={{...S.app,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
       <div style={{textAlign:"center"}}>
-        <div style={{...S.logo,fontSize:"28px",display:"block",marginBottom:"16px"}}>🏏 IPL FANTASY 2026</div>
-        <div style={{color:"#666",fontSize:"14px"}}>Loading match data...</div>
+        <div style={{fontSize:"40px",marginBottom:"12px",animation:"pulse 2s ease-in-out infinite"}}>🏏</div>
+        <div style={{...S.logo,fontSize:"22px",display:"block",marginBottom:"8px"}}>IPL FANTASY 2026</div>
+        <div style={{color:"#475569",fontSize:"13px"}}>Loading match data...</div>
       </div>
     </div>
   );
 
   return (
     <div style={S.app}>
-      <style>{`@keyframes shimmer{0%{background-position:0% center}100%{background-position:200% center}}select option{background:#1a1a2e;color:#e8e0d0;}::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:#0a0a0f;}::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}*{box-sizing:border-box;}input,select{font-size:16px!important;}input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}input[type="number"]{-moz-appearance:textfield;}`}</style>
+      <style>{`
+        select option{background:#131a2b;color:#e2e8f0;}
+        ::-webkit-scrollbar{width:5px;}
+        ::-webkit-scrollbar-track{background:transparent;}
+        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px;}
+        ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2);}
+        *{box-sizing:border-box;}
+        input,select{font-size:14px!important;}
+        input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+        input[type="number"]{-moz-appearance:textfield;}
+        input:focus,select:focus{border-color:rgba(255,140,0,0.35)!important;outline:none;}
+        ::selection{background:rgba(255,140,0,0.3);color:#fff;}
+        .tab-indicator{position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:3px;border-radius:2px;background:linear-gradient(90deg,#FF8C00,#fbbf24);}
+      `}</style>
       <div style={S.noise}/>
       <div style={S.content}>
+        {/* Header */}
         <header style={S.header}>
-          <div style={{...S.logo,fontSize:"17px"}}>🏏 IPL FANTASY 2026</div>
-          <button onClick={()=>setMenuOpen(o=>!o)} style={{background:"transparent",border:"1px solid rgba(255,165,0,0.3)",borderRadius:"6px",padding:"6px 12px",cursor:"pointer",color:"#FFD700",fontSize:"18px",lineHeight:1}}>
-            {menuOpen?"✕":"☰"}
-          </button>
+          <div style={S.logo}>🏏 IPL FANTASY</div>
+          <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+            <span style={{fontSize:"12px",color:"#64748b",fontWeight:500}}>{user.displayName}</span>
+            <button onClick={logout} style={{background:"none",border:"1px solid rgba(239,68,68,0.25)",borderRadius:"6px",padding:"4px 10px",cursor:"pointer",color:"#f87171",fontSize:"11px",fontWeight:600,fontFamily:"'Inter',sans-serif",transition:"all 0.2s"}}>
+              Logout
+            </button>
+          </div>
         </header>
 
-        {menuOpen&&(
-          <div style={{position:"fixed",top:"49px",left:0,right:0,bottom:0,background:"rgba(0,0,0,0.97)",zIndex:99,display:"flex",flexDirection:"column",padding:"16px",overflowY:"auto"}}>
-            <div style={{marginBottom:"8px",padding:"12px 16px",borderRadius:"8px",background:"rgba(255,165,0,0.08)",border:"1px solid rgba(255,165,0,0.15)"}}>
-              <div style={{fontSize:"12px",color:"#888"}}>Logged in as</div>
-              <div style={{fontSize:"16px",color:"#FFD700",fontWeight:"bold"}}>{user.displayName}</div>
-            </div>
-            {navItems.map(n=>(
-              <button key={n.id} style={{...S.navBtn(page===n.id&&!selectedMatch),textAlign:"left",padding:"14px 16px",fontSize:"15px",borderRadius:"8px",marginBottom:"4px",borderBottom:"none",borderLeft:page===n.id&&!selectedMatch?"3px solid #FFD700":"3px solid transparent"}}
-                onClick={()=>{setPage(n.id);setSelectedMatch(null);setMenuOpen(false);}}>
-                {n.label}
-              </button>
-            ))}
-            <div style={{marginTop:"auto",paddingTop:"16px"}}>
-              <button style={{...S.logoutBtn,width:"100%",padding:"13px",fontSize:"14px",textAlign:"center"}} onClick={logout}>Sign Out</button>
-            </div>
-          </div>
-        )}
-
+        {/* Page Content */}
         {selectedMatch
           ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave}/>
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
@@ -869,6 +981,17 @@ export default function App() {
           :null
         }
       </div>
+
+      {/* Bottom Tab Bar */}
+      <nav style={S.bottomNav}>
+        {navItems.map(n=>(
+          <button key={n.id} style={S.tabBtn(page===n.id&&!selectedMatch)} onClick={()=>{setPage(n.id);setSelectedMatch(null);}}>
+            {page===n.id&&!selectedMatch&&<div className="tab-indicator"/>}
+            <span style={{fontSize:"24px",lineHeight:1}}>{n.icon}</span>
+            <span style={{fontSize:"12px",fontWeight:page===n.id&&!selectedMatch?700:500,letterSpacing:"0.3px"}}>{n.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

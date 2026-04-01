@@ -39,12 +39,12 @@ const supa = {
 const TEAMS = {
   RCB: { name:"Royal Challengers Bengaluru", color:"#CC0000", accent:"#FFD700" },
   MI:  { name:"Mumbai Indians",              color:"#004BA0", accent:"#88CFFF" },
-  CSK: { name:"Chennai Super Kings",         color:"#F5A623", accent:"#1A1A2E" },
+  CSK: { name:"Chennai Super Kings",         color:"#F5A623", accent:"#ffffff" },
   KKR: { name:"Kolkata Knight Riders",       color:"#3A225D", accent:"#F5C518" },
-  SRH: { name:"Sunrisers Hyderabad",         color:"#FF6B00", accent:"#1A1A2E" },
-  DC:  { name:"Delhi Capitals",              color:"#0A2D6E", accent:"#EF1C25" },
+  SRH: { name:"Sunrisers Hyderabad",         color:"#FF6B00", accent:"#ffffff" },
+  DC:  { name:"Delhi Capitals",              color:"#0A2D6E", accent:"#ffffff" },
   GT:  { name:"Gujarat Titans",              color:"#1C4F8C", accent:"#00D4FF" },
-  RR:  { name:"Rajasthan Royals",            color:"#EA1A85", accent:"#254AA5" },
+  RR:  { name:"Rajasthan Royals",            color:"#EA1A85", accent:"#ffffff" },
   PBKS:{ name:"Punjab Kings",               color:"#ED1B24", accent:"#DCDDDF" },
   LSG: { name:"Lucknow Super Giants",        color:"#00B4D8", accent:"#FFD700" },
 };
@@ -103,7 +103,7 @@ const S = {
   page:{maxWidth:"960px",margin:"0 auto",padding:"20px 16px"},
   card:{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"16px",padding:"20px",backdropFilter:"blur(8px)"},
   navBtn:(a)=>({padding:"8px 16px",borderRadius:"8px",border:"none",cursor:"pointer",fontSize:"13px",fontWeight:a?600:400,fontFamily:"'Inter',sans-serif",background:a?"rgba(255,140,0,0.15)":"transparent",color:a?"#FFD700":"#64748b",transition:"all 0.2s ease"}),
-  teamBadge:(t)=>({display:"inline-flex",alignItems:"center",padding:"4px 10px",borderRadius:"8px",fontSize:"12px",fontWeight:700,letterSpacing:"0.5px",background:(TEAMS[t]?.color||"#333")+"20",color:TEAMS[t]?.accent||"#fff",border:`1px solid ${(TEAMS[t]?.color||"#333")}40`}),
+  teamBadge:(t)=>({display:"inline-flex",alignItems:"center",padding:"6px 12px",borderRadius:"8px",fontSize:"14px",fontWeight:700,letterSpacing:"0.5px",background:(TEAMS[t]?.color||"#333")+"20",color:TEAMS[t]?.accent||"#fff",border:`1px solid ${(TEAMS[t]?.color||"#333")}40`}),
   statusPill:(st)=>({display:"inline-flex",alignItems:"center",gap:"4px",padding:"4px 10px",borderRadius:"20px",fontSize:"11px",fontWeight:600,background:st==="completed"?"rgba(34,197,94,0.12)":st==="locked"?"rgba(239,68,68,0.12)":st==="submitted"?"rgba(59,130,246,0.12)":"rgba(255,140,0,0.12)",color:st==="completed"?"#4ade80":st==="locked"?"#f87171":st==="submitted"?"#60a5fa":"#fbbf24",border:`1px solid ${st==="completed"?"rgba(34,197,94,0.2)":st==="locked"?"rgba(239,68,68,0.2)":st==="submitted"?"rgba(59,130,246,0.2)":"rgba(255,140,0,0.2)"}`}),
   h1:{fontSize:"24px",fontWeight:800,marginBottom:"6px",color:"#f8fafc",letterSpacing:"-0.5px"},
   label:{display:"block",fontSize:"11px",color:"#64748b",marginBottom:"6px",letterSpacing:"0.5px",textTransform:"uppercase",fontWeight:600},
@@ -188,9 +188,24 @@ function getStatus(match, now, results, userSel) {
 function TeamLogo({team,size=48}) {
   const t=TEAMS[team]||{color:"#333",accent:"#fff"};
   return (
-    <div style={{width:size,height:size,borderRadius:"50%",background:`linear-gradient(135deg, ${t.color} 0%, ${t.color}dd 60%, ${t.accent}44 100%)`,display:"flex",alignItems:"center",justifyContent:"center",border:`2px solid ${t.color}88`,boxShadow:`0 0 12px ${t.color}33, inset 0 -2px 6px rgba(0,0,0,0.3)`,flexShrink:0,position:"relative",overflow:"hidden"}}>
-      <div style={{position:"absolute",inset:0,background:`radial-gradient(circle at 35% 30%, rgba(255,255,255,0.25) 0%, transparent 60%)`,borderRadius:"50%"}}/>
-      <span style={{fontSize:size*0.3,fontWeight:900,letterSpacing:"1px",color:t.accent,textShadow:`0 1px 3px rgba(0,0,0,0.5)`,position:"relative",zIndex:1,fontFamily:"'Arial Black','Georgia',serif"}}>{team}</span>
+    <div style={{width:size,height:size,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,position:"relative"}}>
+      <img 
+        src={`/logos/${team}.png`} 
+        alt={team} 
+        style={{maxWidth:"100%",maxHeight:"100%",objectFit:"contain",filter:`drop-shadow(0 0 10px ${(t.color||'#333')}66)`}}
+        onError={(e)=>{e.target.style.display='none'; e.target.nextSibling.style.display='flex'}}
+      />
+      <div style={{
+        display:'none', 
+        width:size,height:size,borderRadius:"50%",
+        background:`linear-gradient(135deg, ${t.color} 0%, ${t.color}dd 60%, ${t.accent}44 100%)`,
+        alignItems:"center",justifyContent:"center",
+        border:`2px solid ${t.color}88`,boxShadow:`0 0 12px ${t.color}33`,
+        position:"relative",overflow:"hidden"
+      }}>
+        <div style={{position:"absolute",inset:0,background:`radial-gradient(circle at 35% 30%, rgba(255,255,255,0.25) 0%, transparent 60%)`,borderRadius:"50%"}}/>
+        <span style={{fontSize:size*0.3,fontWeight:900,letterSpacing:"1px",color:t.accent,textShadow:`0 1px 3px rgba(0,0,0,0.5)`,position:"relative",zIndex:1,fontFamily:"'Arial Black',sans-serif"}}>{team}</span>
+      </div>
     </div>
   );
 }
@@ -255,10 +270,10 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
               {/* Home team */}
               <div style={{flex:1,display:"flex",alignItems:"center",gap:"12px",justifyContent:"flex-end",minWidth:0}}>
                 <div style={{textAlign:"right",minWidth:0}}>
-                  <div style={{fontSize:"16px",fontWeight:"bold",color:isWinnerHome?"#00c864":st==="completed"&&!isWinnerHome?"#666":"#e8e0d0",letterSpacing:"0.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{match.home}</div>
-                  <div style={{fontSize:"11px",color:"#555",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{TEAMS[match.home]?.name||""}</div>
+                  <div style={{fontSize:"18px",fontWeight:"bold",color:isWinnerHome?"#00c864":st==="completed"&&!isWinnerHome?"#666":"#f8fafc",letterSpacing:"0.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{match.home}</div>
+                  <div style={{fontSize:"12px",color:"#64748b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{TEAMS[match.home]?.name||""}</div>
                 </div>
-                <TeamLogo team={match.home} size={46}/>
+                <TeamLogo team={match.home} size={64}/>
               </div>
 
               {/* VS Badge */}
@@ -269,11 +284,11 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
               </div>
 
               {/* Away team */}
-              <div style={{flex:1,display:"flex",alignItems:"center",gap:"12px",justifyContent:"flex-start",minWidth:0}}>
-                <TeamLogo team={match.away} size={46}/>
+              <div style={{flex:1,display:"flex",alignItems:"center",gap:"16px",justifyContent:"flex-start",minWidth:0}}>
+                <TeamLogo team={match.away} size={64}/>
                 <div style={{textAlign:"left",minWidth:0}}>
-                  <div style={{fontSize:"16px",fontWeight:"bold",color:isWinnerAway?"#00c864":st==="completed"&&!isWinnerAway?"#666":"#e8e0d0",letterSpacing:"0.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{match.away}</div>
-                  <div style={{fontSize:"11px",color:"#555",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{TEAMS[match.away]?.name||""}</div>
+                  <div style={{fontSize:"18px",fontWeight:"bold",color:isWinnerAway?"#00c864":st==="completed"&&!isWinnerAway?"#666":"#f8fafc",letterSpacing:"0.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{match.away}</div>
+                  <div style={{fontSize:"12px",color:"#64748b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{TEAMS[match.away]?.name||""}</div>
                 </div>
               </div>
             </div>
@@ -291,10 +306,82 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
   );
 }
 
+// ─── INSIGHTS PANEL ───────────────────────────────────────────────────────────
+function InsightsPanel({insights,match}) {
+  const [open,setOpen]=useState(true);
+  const [tab,setTab]=useState("xi");
+  if(!insights) return null;
+  const ago=insights.generated_at?Math.round((Date.now()-new Date(insights.generated_at))/3600000):null;
+  return (
+    <div style={{...S.card,marginBottom:"16px",background:"rgba(59,130,246,0.04)",border:"1px solid rgba(59,130,246,0.15)",overflow:"hidden"}}>
+      <button onClick={()=>setOpen(o=>!o)} style={{width:"100%",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0",fontFamily:"'Inter',sans-serif"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+          <span style={{fontSize:"16px"}}>📊</span>
+          <span style={{fontSize:"14px",fontWeight:700,color:"#60a5fa"}}>Match Insights</span>
+          {ago!==null&&<span style={{fontSize:"10px",color:"#475569",background:"rgba(255,255,255,0.06)",padding:"2px 6px",borderRadius:"4px"}}>AI · {ago<1?"just now":`${ago}h ago`}</span>}
+        </div>
+        <span style={{color:"#60a5fa",fontSize:"14px",transition:"transform 0.2s",transform:open?"rotate(180deg)":"rotate(0)"}}>{open?"▲":"▼"}</span>
+      </button>
+
+      {open&&(
+        <div style={{marginTop:"14px"}}>
+          {/* Tabs */}
+          <div style={{display:"flex",gap:"4px",marginBottom:"14px"}}>
+            {[{id:"xi",label:"Probable XI"},{id:"form",label:"Form Guide"},{id:"pitch",label:"Pitch & H2H"}].map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"6px 12px",borderRadius:"6px",border:"none",cursor:"pointer",fontSize:"12px",fontWeight:tab===t.id?600:400,fontFamily:"'Inter',sans-serif",background:tab===t.id?"rgba(59,130,246,0.15)":"transparent",color:tab===t.id?"#60a5fa":"#64748b",transition:"all 0.2s"}}>{t.label}</button>
+            ))}
+          </div>
+
+          {/* Probable XI */}
+          {tab==="xi"&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
+              {[{team:match.home,xi:insights.home_probable_xi},{team:match.away,xi:insights.away_probable_xi}].map(({team,xi})=>(
+                <div key={team}>
+                  <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"8px"}}>
+                    <TeamLogo team={team} size={28}/>
+                    <span style={{fontSize:"14px",fontWeight:700,color:"#f8fafc"}}>{team}</span>
+                  </div>
+                  {(xi||[]).map((p,i)=>(
+                    <div key={i} style={{fontSize:"11px",color:"#94a3b8",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,0.03)"}}>{i+1}. {p}</div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Form Guide */}
+          {tab==="form"&&(
+            <div>
+              {[{title:`${match.home} Batsmen`,text:insights.home_form_batsmen},{title:`${match.away} Batsmen`,text:insights.away_form_batsmen},{title:`${match.home} Bowlers`,text:insights.home_form_bowlers},{title:`${match.away} Bowlers`,text:insights.away_form_bowlers}].map(({title,text})=>text&&(
+                <div key={title} style={{marginBottom:"10px"}}>
+                  <div style={{fontSize:"11px",fontWeight:700,color:"#fbbf24",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{title}</div>
+                  <div style={{fontSize:"12px",color:"#94a3b8",lineHeight:"1.5",whiteSpace:"pre-wrap"}}>{text}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pitch & H2H */}
+          {tab==="pitch"&&(
+            <div>
+              {[{title:"🏟️ Pitch Report",text:insights.pitch_report},{title:"📋 Head to Head",text:insights.head_to_head},{title:"⚔️ Key Matchups",text:insights.key_matchups},{title:"🔮 Prediction",text:insights.prediction_summary}].map(({title,text})=>text&&(
+                <div key={title} style={{marginBottom:"10px"}}>
+                  <div style={{fontSize:"11px",fontWeight:700,color:"#fbbf24",marginBottom:"4px"}}>{title}</div>
+                  <div style={{fontSize:"12px",color:"#94a3b8",lineHeight:"1.5",whiteSpace:"pre-wrap"}}>{text}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SELECTION FORM ───────────────────────────────────────────────────────────
 const EMPTY_SEL={winningTeam:"",bestBatsman:"",bestBowler:"",powerplayWinner:"",dotBallBowler:"",totalWickets:"",duckBatsman:"",doubleCategory:"",winningHorse:"",losingHorse:""};
 
-function SelectionForm({match,user,onBack,results,userSel,onSave}) {
+function SelectionForm({match,user,onBack,results,userSel,onSave,insights}) {
   const [now]=useState(new Date());
   const locked=now>=new Date(match.lock_time);
   const hasResult=!!results[match.id];
@@ -328,17 +415,28 @@ function SelectionForm({match,user,onBack,results,userSel,onSave}) {
   return (
     <div style={S.page}>
       <button style={{...S.btn("ghost"),marginBottom:"16px",padding:"8px 16px",fontSize:"13px"}} onClick={onBack}>← Back</button>
-      <div style={{display:"flex",flexDirection:"column",gap:"6px",marginBottom:"18px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
-          <span style={S.teamBadge(match.home)}>{match.home}</span>
-          <span style={{color:"#555"}}>vs</span>
-          <span style={S.teamBadge(match.away)}>{match.away}</span>
-          <span style={S.statusPill(st)}>{st==="completed"?"✓ Completed":st==="locked"?"🔒 Locked":st==="submitted"?"✓ Submitted":"Open"}</span>
+      <div style={{display:"flex",flexDirection:"column",gap:"12px",marginBottom:"20px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"16px",flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+            <TeamLogo team={match.home} size={48}/>
+            <span style={S.teamBadge(match.home)}>{match.home}</span>
+          </div>
+          <span style={{color:"#475569",fontWeight:800,fontSize:"14px"}}>VS</span>
+          <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+            <TeamLogo team={match.away} size={48}/>
+            <span style={S.teamBadge(match.away)}>{match.away}</span>
+          </div>
+          <span style={{marginLeft:"auto", ...S.statusPill(st)}}>{st==="completed"?"✓ Completed":st==="locked"?"🔒 Locked":st==="submitted"?"✓ Submitted":"Open"}</span>
         </div>
-        <div style={{fontSize:"12px",color:"#555"}}>Match {match.id} · {match.date} · {match.time_label}</div>
+        <div style={{fontSize:"14px",color:"#94a3b8",display:"flex",alignItems:"center",gap:"12px"}}>
+          <span style={{background:"rgba(255,255,255,0.08)",padding:"6px 12px",borderRadius:"8px",fontWeight:700,color:"#fbbf24"}}>Match {match.id}</span>
+          <span>{match.date} · {match.time_label}</span>
+        </div>
       </div>
 
       {locked&&!hasResult&&<div style={{...S.card,background:"rgba(255,100,100,0.05)",borderColor:"rgba(255,100,100,0.15)",marginBottom:"16px",color:"#ff8888",fontSize:"13px"}}>🔒 Match has started. Selections are locked.</div>}
+
+      <InsightsPanel insights={insights} match={match}/>
 
       {hasResult&&points&&(
         <div style={{...S.card,background:"rgba(0,200,100,0.04)",borderColor:"rgba(0,200,100,0.15)",marginBottom:"16px"}}>
@@ -496,15 +594,15 @@ function MyStatsPage({user,matches,results,userSel}) {
           return (
             <div key={m.id} style={{...S.card,marginBottom:"10px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",flexWrap:"wrap",gap:"8px"}}>
-                <div style={{display:"flex",gap:"8px",alignItems:"center",flexWrap:"wrap"}}>
-                  <span style={{color:"#64748b",fontSize:"12px",fontWeight:600}}>M{m.id}</span>
-                  <TeamLogo team={m.home} size={24}/>
-                  <span style={{fontSize:"12px",fontWeight:600,color:"#e2e8f0"}}>{m.home}</span>
-                  <span style={{color:"#475569",fontSize:"11px"}}>vs</span>
-                  <TeamLogo team={m.away} size={24}/>
-                  <span style={{fontSize:"12px",fontWeight:600,color:"#e2e8f0"}}>{m.away}</span>
+                <div style={{display:"flex",gap:"12px",alignItems:"center",flexWrap:"wrap"}}>
+                  <span style={{color:"#64748b",fontSize:"14px",fontWeight:700,width:"32px"}}>M{m.id}</span>
+                  <TeamLogo team={m.home} size={36}/>
+                  <span style={{fontSize:"15px",fontWeight:700,color:"#f8fafc"}}>{m.home}</span>
+                  <span style={{color:"#475569",fontSize:"12px",fontWeight:600}}>vs</span>
+                  <TeamLogo team={m.away} size={36}/>
+                  <span style={{fontSize:"15px",fontWeight:700,color:"#f8fafc"}}>{m.away}</span>
                 </div>
-                <div style={{fontSize:"18px",fontWeight:800,color:"#fbbf24"}}>{total} pts</div>
+                <div style={{fontSize:"22px",fontWeight:900,color:"#fbbf24",letterSpacing:"-0.5px"}}>{total} pts</div>
               </div>
               <div style={{display:"flex",flexWrap:"wrap",gap:"5px"}}>
                 {Object.entries(breakdown).filter(([k])=>!k.startsWith("_")).map(([k,v])=>(
@@ -775,10 +873,17 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection})
               <div key={m.id} onClick={()=>selectMatch(m)}
                 style={{...S.card,marginBottom:"6px",cursor:"pointer",borderColor:selectedMatch?.id===m.id?"#FFD700":"rgba(255,255,255,0.07)",padding:"10px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:"13px"}}>M{m.id}: {m.home} vs {m.away}</span>
-                  {results[m.id]&&<span style={{fontSize:"11px",color:"#00c864"}}>✓</span>}
+                  <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+                    <span style={{fontSize:"14px",fontWeight:800,color:"#64748b",width:"32px"}}>M{m.id}</span>
+                    <TeamLogo team={m.home} size={32}/>
+                    <span style={{fontSize:"15px",fontWeight:700}}>{m.home}</span>
+                    <span style={{fontSize:"12px",color:"#475569"}}>vs</span>
+                    <TeamLogo team={m.away} size={32}/>
+                    <span style={{fontSize:"15px",fontWeight:700}}>{m.away}</span>
+                  </div>
+                  {results[m.id]&&<span style={{fontSize:"14px",color:"#00c864"}}>✓</span>}
                 </div>
-                <div style={{fontSize:"11px",color:"#555",marginTop:"2px"}}>{m.date}</div>
+                <div style={{fontSize:"12px",color:"#475569",marginTop:"6px",marginLeft:"44px"}}>{m.date}</div>
               </div>
             ))}
           </div>
@@ -876,6 +981,7 @@ export default function App() {
   const [matches,setMatches]=useState([]);
   const [results,setResults]=useState({});
   const [allSelections,setAllSelections]=useState({});
+  const [insights,setInsights]=useState({});
   const [loading,setLoading]=useState(true);
 
   const userSel=user?(allSelections[user.username]||{}):{};
@@ -887,7 +993,8 @@ export default function App() {
       supa.query("matches",{select:"*",order:"id.asc"}),
       supa.query("results",{select:"*"}),
       supa.query("selections",{select:"*"}),
-    ]).then(([matchData,resultData,selData])=>{
+      supa.query("match_insights",{select:"*"}).catch(()=>[]),
+    ]).then(([matchData,resultData,selData,insightsData])=>{
       setMatches(matchData||[]);
       const resMap={};
       (resultData||[]).forEach(r=>{resMap[r.match_id]={winningTeam:r.winning_team,runMargin:r.run_margin,wicketMargin:r.wicket_margin,topScorer:r.top_scorer,topScorerRuns:r.top_scorer_runs,bestBowler:r.best_bowler,bestBowlerPoints:r.best_bowler_points,powerplayWinner:r.powerplay_winner,powerplayScore:r.powerplay_score,powerplayDiff:r.powerplay_diff,dotBallLeader:r.dot_ball_leader,dotBalls:r.dot_balls,totalWickets:r.total_wickets,wicketsRange:r.wickets_range,duckBatsmen:r.duck_batsmen||[],matchTopPlayer:r.match_top_player,matchBottomPlayer:r.match_bottom_player};});
@@ -898,6 +1005,9 @@ export default function App() {
         selMap[s.username][s.match_id]={winningTeam:s.winning_team,bestBatsman:s.best_batsman,bestBowler:s.best_bowler,powerplayWinner:s.powerplay_winner,dotBallBowler:s.dot_ball_bowler,totalWickets:s.total_wickets,duckBatsman:s.duck_batsman,doubleCategory:s.double_category,winningHorse:s.winning_horse,losingHorse:s.losing_horse};
       });
       setAllSelections(selMap);
+      const iMap={};
+      (Array.isArray(insightsData)?insightsData:[]).forEach(i=>{iMap[i.match_id]=i;});
+      setInsights(iMap);
       setLoading(false);
     }).catch(()=>setLoading(false));
   },[user]);
@@ -973,7 +1083,7 @@ export default function App() {
 
         {/* Page Content */}
         {selectedMatch
-          ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave}/>
+          ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave} insights={insights[selectedMatch.id]}/>
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
           :page==="leaderboard"?<LeaderboardPage matches={matches} results={results} allSelections={allSelections}/>
           :page==="stats"?<MyStatsPage user={user} matches={matches} results={results} userSel={userSel}/>

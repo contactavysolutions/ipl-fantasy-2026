@@ -43,12 +43,8 @@ export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   
   if (!GEMINI_API_KEY) {
-    console.error("❌ GEMINI_API_KEY environment variable is NOT present in process.env.");
-    console.error("   Please ensure your .env file is in the root and has GEMINI_API_KEY=...");
-    return null;
+    return { success: false, error: "GEMINI_API_KEY missing in environment" };
   }
-
-  console.log(`📡 GEMINI_API_KEY found (length: ${GEMINI_API_KEY.length})`);
 
   const homeFull = TEAMS[homeTeam] || homeTeam;
   const awayFull = TEAMS[awayTeam] || awayTeam;
@@ -57,7 +53,7 @@ export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
 
 For the IPL 2026 match: ${homeFull} (${homeTeam}) vs ${awayFull} (${awayTeam}) scheduled on ${matchDate}:
 
-Provide the following:
+Search for the LATEST cricket news and provide:
 1. PROBABLE PLAYING XI for both teams (11 players each).
 2. IN-FORM BATSMEN and BOWLERS for both teams (with recent stats).
 3. PITCH REPORT and Venue analysis.
@@ -65,7 +61,7 @@ Provide the following:
 5. KEY MATCHUPS to watch.
 6. PREDICTION SUMMARY.
 
-IMPORTANT: Return your response as valid JSON with exactly these keys:
+IMPORTANT: Return your response ONLY as a valid JSON object with exactly these keys:
 {
   "home_probable_xi": ["Full Name 1", ...],
   "away_probable_xi": ["Full Name 1", ...],
@@ -78,22 +74,23 @@ IMPORTANT: Return your response as valid JSON with exactly these keys:
   "key_matchups": "...",
   "prediction_summary": "..."
 }
-Only return the JSON object, no markdown.`;
+Do not include any other text or markdown formatting.`;
 
-  // We'll try stable models first as preview ones can have stricter API key/tier requirements
+  // Try stable flash model first
   const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-3-flash-preview"];
+  let lastError = "";
   
   for (const model of models) {
     console.log(`📡 Attempting generation with ${model}...`);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
     
+    // Note: Removed responseMimeType: "application/json" because it often conflicts with tools/search
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.7,
-        responseMimeType: "application/json",
+        temperature: 0.7
       },
-      // Note: removing tools temporarily to see if it bypasses the 400 error
+      tools: [{ googleSearch: {} }]
     };
 
     try {
@@ -104,30 +101,37 @@ Only return the JSON object, no markdown.`;
       });
 
       if (!res.ok) {
-        const errText = await res.text();
-        console.error(`⚠️ Gemini API error for ${model} (${res.status}):`, errText);
-        // Continue to next model if it's a 404 or 400 (Bad Request)
+        const errData = await res.json().catch(() => ({}));
+        const msg = errData?.error?.message || `HTTP ${res.status}`;
+        console.error(`⚠️ Gemini API error for ${model}: ${msg}`);
+        lastError = `${model}: ${msg}`;
         if (res.status === 404 || res.status === 400 || res.status === 401) continue;
-        return null;
+        return { success: false, error: lastError };
       }
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) {
-        console.error(`⚠️ No text in ${model} response.`);
+        lastError = `${model}: No text response`;
         continue;
       }
 
-      const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
-      const insights = JSON.parse(cleaned);
+      // Robust JSON extraction from text
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        lastError = `${model}: Invalid JSON format in response`;
+        continue;
+      }
+      
+      const insights = JSON.parse(jsonMatch[0]);
       console.log(`✅ Success with ${model}`);
-      return insights;
+      return { success: true, insights };
     } catch (err) {
       console.error(`⚠️ Error with ${model}:`, err.message);
+      lastError = `${model}: ${err.message}`;
       continue;
     }
   }
 
-  console.error("❌ All AI models failed to generate insights.");
-  return null;
+  return { success: false, error: lastError || "All models failed" };
 }

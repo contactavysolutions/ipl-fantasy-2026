@@ -48,11 +48,19 @@ export default async (req) => {
       console.log(`Manual generating for M${match.id}: ${match.home} vs ${match.away}`);
       
       try {
-        const insights = await generateInsights(match.home, match.away, match.date, match.id);
-        if (!insights) {
-          results.push({ matchId: match.id, teams: `${match.home} vs ${match.away}`, success: false, error: "AI generation failed" });
+        const result = await generateInsights(match.home, match.away, match.date, match.id);
+        
+        if (!result.success) {
+          results.push({ 
+            matchId: match.id, 
+            teams: `${match.home} vs ${match.away}`, 
+            success: false, 
+            error: result.error || "AI generation failed" 
+          });
           continue;
         }
+
+        const insights = result.insights;
 
         await supabaseUpsert("match_insights", {
           match_id: match.id,

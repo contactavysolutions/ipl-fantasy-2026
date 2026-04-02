@@ -76,24 +76,25 @@ IMPORTANT: Return your response ONLY as a valid JSON object with exactly these k
 }
 Do not include any other text or markdown formatting.`;
 
-  // Try stable flash model first
+  // We'll try stable models first as preview ones can have stricter API key/tier requirements
   const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-3-flash-preview"];
   let lastError = "";
   
   for (const model of models) {
     console.log(`📡 Attempting generation with ${model}...`);
+    // Using v1beta for now as search tools are often beta-only
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
     
-    // Note: Removed responseMimeType: "application/json" because it often conflicts with tools/search
-    const body = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7
-      },
-      tools: [{ googleSearch: {} }]
-    };
+    // We'll try with search first, but have a fallback if search quota is 0
+    const tryRequest = async (useSearch) => {
+      const body = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7 }
+      };
+      if (useSearch) {
+        body.tools = [{ googleSearch: {} }];
+      }
 
-    try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,21 +104,34 @@ Do not include any other text or markdown formatting.`;
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         const msg = errData?.error?.message || `HTTP ${res.status}`;
-        console.error(`⚠️ Gemini API error for ${model}: ${msg}`);
-        lastError = `${model}: ${msg}`;
-        if (res.status === 404 || res.status === 400 || res.status === 401) continue;
-        return { success: false, error: lastError };
+        return { success: false, status: res.status, message: msg };
       }
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) {
-        lastError = `${model}: No text response`;
-        continue;
+      return { success: true, text };
+    };
+
+    try {
+      // Attempt 1: With Search
+      let result = await tryRequest(true);
+      
+      // If we got a quota/precondition error, try WITHOUT search as a fallback
+      if (!result.success && (result.status === 429 || result.status === 400) && result.message.includes("quota")) {
+        console.log(`⚠️ Search quota issue for ${model}, trying without search...`);
+        result = await tryRequest(false);
+      }
+
+      if (!result.success) {
+        console.error(`⚠️ Gemini API error for ${model}: ${result.message}`);
+        lastError = `${model}: ${result.message}`;
+        // Continue to next model for common retryable errors
+        if (result.status === 404 || result.status === 429 || result.status === 400 || result.status === 401) continue;
+        return { success: false, error: lastError };
       }
 
       // Robust JSON extraction from text
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         lastError = `${model}: Invalid JSON format in response`;
         continue;

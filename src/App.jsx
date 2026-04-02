@@ -812,6 +812,94 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection}) {
   );
 }
 
+function AIInsightsTab({matches}) {
+  const [loading,setLoading]=useState(false);
+  const [response,setResponse]=useState(null);
+  const [error,setError]=useState(null);
+  const [processed,setProcessed]=useState([]);
+
+  const handleUpdate = async () => {
+    setLoading(true);
+    setResponse(null);
+    setError(null);
+    setProcessed([]);
+    try {
+      const res = await fetch("/.netlify/functions/manual-update-insights", { method: "POST" });
+      
+      // Better error handling for non-JSON responses (like 404s in dev)
+      if (!res.ok) {
+        let errDetail = "";
+        try {
+          const errData = await res.json();
+          errDetail = errData.error || errData.message || "";
+        } catch(e) {
+          errDetail = await res.text();
+        }
+        throw new Error(`Server returned ${res.status}: ${errDetail.substring(0, 50) || "Is 'netlify dev' running?"}`);
+      }
+
+      const data = await res.json();
+      setResponse(data);
+      setProcessed(data.results || []);
+    } catch (err) {
+      console.error(err);
+      setError(err.message.includes("Unexpected end of JSON input") 
+        ? "Error: Could not reach the AI service. If you are developing locally, please ensure you are running 'netlify dev' instead of 'npm run dev'." 
+        : err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={S.card}>
+      <h2 style={{...S.sectionTitle,fontSize:"18px",marginBottom:"12px"}}>Manual AI Insights Update</h2>
+      <p style={{fontSize:"14px",color:"#94a3b8",marginBottom:"20px",lineHeight:"1.5"}}>
+        This will trigger the AI to generate or refresh insights (Probable XI, Pitch Report, Pitch & H2H) 
+        for all matches scheduled within the next 24 hours. This may take up to 15-20 seconds.
+      </p>
+      
+      <div style={{display:"flex",alignItems:"center",gap:"16px",flexWrap:"wrap",marginBottom:"20px"}}>
+        <button style={S.btn("primary")} onClick={handleUpdate} disabled={loading}>
+          {loading ? "🔄 Updating AI Insights..." : "🚀 Trigger Today's Updates"}
+        </button>
+        {loading && <span style={{fontSize:"13px",color:"#fbbf24",animation:"pulse 1.5s infinite"}}>Waiting for Gemini AI response...</span>}
+      </div>
+
+      {error && (
+        <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:"8px",padding:"12px",marginBottom:"20px"}}>
+          <div style={{color:"#f87171",fontWeight:700,fontSize:"14px",marginBottom:"4px"}}>❌ Error Updating Insights</div>
+          <div style={{color:"#f87171",fontSize:"13px"}}>{error}</div>
+        </div>
+      )}
+
+      {response && (
+        <div style={{background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:"8px",padding:"12px",marginBottom:"20px"}}>
+          <div style={{color:"#4ade80",fontWeight:700,fontSize:"14px",marginBottom:"8px"}}>✅ Update Complete</div>
+          <div style={{fontSize:"13px",color:"#f8fafc",marginBottom:"12px"}}>
+            Processed {response.processed} of {response.totalFound || response.processed} upcoming match(es).
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+            {processed.map((r,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:"8px",background:"rgba(0,0,0,0.15)",padding:"6px 10px",borderRadius:"6px",fontSize:"12px"}}>
+                <span style={{color:r.success?"#4ade80":"#f87171"}}>{r.success?"✓":"✕"}</span>
+                <span style={{fontWeight:600}}>{r.teams}</span>
+                {!r.success && <span style={{color:"#94a3b8",fontSize:"11px"}}>({r.error})</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!response && !error && !loading && (
+        <div style={{color:"#64748b",fontSize:"13px",fontStyle:"italic"}}>
+          No manual update history in this session. Click the button above to start.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection}) {
   const [adminTab,setAdminTab]=useState("results");
   const [selectedMatch,setSelectedMatch]=useState(null);
@@ -862,9 +950,10 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection})
       <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
         <button style={S.navBtn(adminTab==="results")} onClick={()=>setAdminTab("results")}>Match Results</button>
         <button style={S.navBtn(adminTab==="selections")} onClick={()=>setAdminTab("selections")}>Player Selections</button>
+        <button style={S.navBtn(adminTab==="insights")} onClick={()=>setAdminTab("insights")}>AI Insights</button>
         <button style={S.navBtn(adminTab==="users")} onClick={()=>setAdminTab("users")}>Player Passwords</button>
       </div>
-      {adminTab==="users"?<UserManagementTab/>:adminTab==="selections"?<PlayerSelectionsTab matches={matches} allSelections={allSelections} onSaveSelection={onSaveSelection}/>:(
+      {adminTab==="users"?<UserManagementTab/>:adminTab==="selections"?<PlayerSelectionsTab matches={matches} allSelections={allSelections} onSaveSelection={onSaveSelection}/>:adminTab==="insights"?<AIInsightsTab matches={matches}/>:(
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:"16px"}}>
           <div>
             <div style={S.sectionTitle}>Locked / Completed Matches</div>

@@ -76,16 +76,20 @@ IMPORTANT: Return your response ONLY as a valid JSON object with exactly these k
 }
 Do not include any other text or markdown formatting.`;
 
-  // We'll try stable models first as preview ones can have stricter API key/tier requirements
-  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-3-flash-preview"];
+  // Attempt models with their preferred endpoints
+  const models = [
+    { id: "gemini-1.5-flash", version: "v1" },
+    { id: "gemini-2.0-flash", version: "v1beta" },
+    { id: "gemini-3-flash-preview", version: "v1beta" }
+  ];
+  
   let lastError = "";
   
   for (const model of models) {
-    console.log(`📡 Attempting generation with ${model}...`);
-    // Using v1beta for now as search tools are often beta-only
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    console.log(`📡 Attempting generation with ${model.id} (${model.version})...`);
+    const url = `https://generativelanguage.googleapis.com/${model.version}/models/${model.id}:generateContent?key=${GEMINI_API_KEY}`;
     
-    // We'll try with search first, but have a fallback if search quota is 0
+    // We'll try with search first, but have a fallback if search quota is restricted
     const tryRequest = async (useSearch) => {
       const body = {
         contents: [{ parts: [{ text: prompt }] }],
@@ -116,33 +120,34 @@ Do not include any other text or markdown formatting.`;
       // Attempt 1: With Search
       let result = await tryRequest(true);
       
-      // If we got a quota/precondition error, try WITHOUT search as a fallback
-      if (!result.success && (result.status === 429 || result.status === 400) && result.message.includes("quota")) {
-        console.log(`⚠️ Search quota issue for ${model}, trying without search...`);
+      // If we got a quota/precondition/auth error, try WITHOUT search as a fallback
+      if (!result.success && (result.status === 429 || result.status === 400 || result.status === 401) && 
+         (result.message.toLowerCase().includes("quota") || result.message.toLowerCase().includes("key") || result.message.toLowerCase().includes("permission"))) {
+        console.log(`⚠️ Search/Auth issue for ${model.id}, trying without search...`);
         result = await tryRequest(false);
       }
 
       if (!result.success) {
-        console.error(`⚠️ Gemini API error for ${model}: ${result.message}`);
-        lastError = `${model}: ${result.message}`;
-        // Continue to next model for common retryable errors
-        if (result.status === 404 || result.status === 429 || result.status === 400 || result.status === 401) continue;
+        console.error(`⚠️ Gemini API error for ${model.id}: ${result.message}`);
+        lastError = `${model.id}: ${result.message}`;
+        // Continue to next model for retryable errors
+        if (result.status === 404 || result.status === 429 || result.status === 400 || result.status === 401 || result.status === 403) continue;
         return { success: false, error: lastError };
       }
 
       // Robust JSON extraction from text
       const jsonMatch = result.text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        lastError = `${model}: Invalid JSON format in response`;
+        lastError = `${model.id}: Invalid JSON format in response`;
         continue;
       }
       
       const insights = JSON.parse(jsonMatch[0]);
-      console.log(`✅ Success with ${model}`);
+      console.log(`✅ Success with ${model.id}`);
       return { success: true, insights };
     } catch (err) {
-      console.error(`⚠️ Error with ${model}:`, err.message);
-      lastError = `${model}: ${err.message}`;
+      console.error(`⚠️ Error with ${model.id}:`, err.message);
+      lastError = `${model.id}: ${err.message}`;
       continue;
     }
   }

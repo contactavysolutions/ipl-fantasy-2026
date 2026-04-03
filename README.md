@@ -13,7 +13,7 @@
 - **Build Tool**: Vite 5.0.0 (rapid HMR development, optimized production builds)
 - **Backend**: Supabase REST API (PostgreSQL database)
 - **Styling**: Inline CSS-in-JS with centralized style object (S)
-- **Deployment**: Netlify (SPA routing via netlify.toml)
+- **Deployment**: Vercel (SPA routing & Serverless Functions via `vercel.json`)
 - **State Management**: React local state (hooks only, no Redux/Context)
 
 ### Codebase Structure
@@ -34,6 +34,12 @@ src/
 │   │   └── UserManagementTab
 │   └── Main App router
 └── main.jsx         # React root render
+
+api/                 # Vercel Serverless Functions
+├── generate-insights.mjs        # Hourly Vercel Cron Job for AI insights
+├── manual-update-insights.mjs   # API Endpoint for manual trigger
+└── lib/
+    └── insights.mjs             # Shared AI logic & Gemini APIs
 
 ```
 
@@ -409,19 +415,21 @@ Update Leaderboard & User Stats
 ```bash
 npm install        # Install dependencies
 npm run dev        # Start dev server (http://localhost:5173 or next available port)
+npx vercel dev     # Start Vercel dev environment (replicates serverless functions locally)
 ```
 
 ### Production Build
 ```bash
 npm run build      # Creates optimized dist/ folder
-npm run preview    # Preview production build locally
+npx vercel build   # Builds production outputs locally
 ```
 
 ### Deployment
-- **Netlify**: Connected via `netlify.toml`
-  - SPA routing configured (404.html → index.html)
-  - Automatic deploys on Git push
-  - Environment variables configured in Netlify dashboard
+- **Vercel**: App is deployed seamlessly using Vercel Zero Config.
+  - SPA routing is managed via `vercel.json` (fallback all non-API logic to `index.html`).
+  - **Serverless API**: Code inside the `api/` directory is automatically exposed securely as Vercel Serverless Functions.
+  - **Chron Jobs**: Configured inside `vercel.json` to hit `/api/generate-insights` on a set hourly schedule (`0 * * * *`).
+  - Automatic deploys trigger on GitHub branch pushes.
 
 ---
 
@@ -597,6 +605,7 @@ Venky, Naresh, Srikanth B, Prashanth, Sreeram, Santhosh Male
 ---
 
 ## 📌 Version History
+- **v1.0.1** (April 03, 2026): Migrated backend architecture from Netlify Edge to Vercel Serverless Functions (`api/`) & implemented `vercel.json`.
 - **v1.0.0** (March 30, 2026): Initial release with all core features
 
 ---
@@ -610,5 +619,5 @@ For questions or issues, refer to:
 
 ---
 
-**Last Updated**: March 30, 2026  
+**Last Updated**: April 03, 2026  
 **Status**: ✅ Production Ready

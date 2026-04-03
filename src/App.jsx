@@ -824,7 +824,7 @@ function AIInsightsTab({matches}) {
     setError(null);
     setProcessed([]);
     try {
-      const res = await fetch("/.netlify/functions/manual-update-insights", { method: "POST" });
+      const res = await fetch("/api/manual-update-insights", { method: "POST" });
       
       // Better error handling for non-JSON responses (like 404s in dev)
       if (!res.ok) {

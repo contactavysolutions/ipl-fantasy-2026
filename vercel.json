@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/generate-insights",
+      "schedule": "0 * * * *"
+    }
+  ],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

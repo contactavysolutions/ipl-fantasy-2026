@@ -72,14 +72,19 @@ function camelize(str) {
   return map[str]||str;
 }
 
-function calcPoints(sel, res) {
+function calcPoints(sel, res, pScores = {}) {
   if (!sel||!res) return {breakdown:{},total:0};
   const bd = {};
+  
+  const getB = (player) => pScores[player]?.batsman_score || 0;
+  const getBW = (player) => pScores[player]?.bowler_score || 0;
+  const getDB = (player) => pScores[player]?.dot_ball_score || 0;
+
   bd.winningTeam = sel.winningTeam===res.winningTeam ? 50+Math.round((res.runMargin||0)/((res.wicketMargin||1)*5)) : 0;
-  bd.bestBatsman = sel.bestBatsman===res.topScorer ? (res.topScorerRuns||0)+50 : 0;
-  bd.bestBowler = sel.bestBowler===res.bestBowler ? (res.bestBowlerPoints||0)+50 : 0;
+  bd.bestBatsman = getB(sel.bestBatsman) + (sel.bestBatsman===res.topScorer ? (res.topScorerRuns||0)+50 : 0);
+  bd.bestBowler = getBW(sel.bestBowler) + (sel.bestBowler===res.bestBowler ? (res.bestBowlerPoints||0)+50 : 0);
   bd.powerplayWinner = sel.powerplayWinner===res.powerplayWinner ? (res.powerplayScore||0)+(res.powerplayDiff||0) : 0;
-  bd.dotBallBowler = sel.dotBallBowler===res.dotBallLeader ? 50+(res.dotBalls||0)*5 : 0;
+  bd.dotBallBowler = getDB(sel.dotBallBowler) + (sel.dotBallBowler===res.dotBallLeader ? 50+(res.dotBalls||0)*5 : 0);
   bd.totalWickets = sel.totalWickets===res.wicketsRange ? (res.totalWickets||0)*5 : 0;
   bd.duckBatsman = (res.duckBatsmen||[]).includes(sel.duckBatsman) ? 100 : 0;
   bd.winningHorse = sel.winningHorse&&res.matchTopPlayer&&sel.winningHorse===res.matchTopPlayer ? 100 : 0;
@@ -381,7 +386,7 @@ function InsightsPanel({insights,match}) {
 // ─── SELECTION FORM ───────────────────────────────────────────────────────────
 const EMPTY_SEL={winningTeam:"",bestBatsman:"",bestBowler:"",powerplayWinner:"",dotBallBowler:"",totalWickets:"",duckBatsman:"",doubleCategory:"",winningHorse:"",losingHorse:""};
 
-function SelectionForm({match,user,onBack,results,userSel,onSave,insights}) {
+function SelectionForm({match,user,onBack,results,userSel,onSave,insights,playerScores}) {
   const [now]=useState(new Date());
   const locked=now>=new Date(match.lock_time);
   const hasResult=!!results[match.id];
@@ -401,7 +406,7 @@ function SelectionForm({match,user,onBack,results,userSel,onSave,insights}) {
     setSaving(false); setTimeout(()=>setMsg(""),3000);
   };
 
-  const points=hasResult?calcPoints(sel,results[match.id]):null;
+  const points=hasResult?calcPoints(sel,results[match.id],playerScores[match.id]):null;
   const Field=({label,field,options})=>(
     <div>
       <label style={S.label}>{label}</label>
@@ -498,13 +503,13 @@ function SelectionForm({match,user,onBack,results,userSel,onSave,insights}) {
 }
 
 // ─── LEADERBOARD ──────────────────────────────────────────────────────────────
-function LeaderboardPage({matches,results,allSelections}) {
+function LeaderboardPage({matches,results,allSelections,playerScores}) {
   const completed=matches.filter(m=>results[m.id]);
   const scores=FANTASY_PLAYERS.map(name=>{
     const uname=name.toLowerCase().replace(/\s/g,"_");
     const uSel=allSelections[uname]||{};
     let total=0,matchCount=0;
-    completed.forEach(m=>{if(uSel[m.id]){total+=calcPoints(uSel[m.id],results[m.id]).total;matchCount++;}});
+    completed.forEach(m=>{if(uSel[m.id]){total+=calcPoints(uSel[m.id],results[m.id],playerScores[m.id]).total;matchCount++;}});
     return {name,total,matchCount};
   }).sort((a,b)=>b.total-a.total);
   const medals=["🥇","🥈","🥉"];
@@ -566,9 +571,9 @@ function LeaderboardPage({matches,results,allSelections}) {
 }
 
 // ─── MY STATS ─────────────────────────────────────────────────────────────────
-function MyStatsPage({user,matches,results,userSel}) {
+function MyStatsPage({user,matches,results,userSel,playerScores}) {
   const completed=matches.filter(m=>results[m.id]&&userSel[m.id]);
-  const totalPoints=completed.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id]).total,0);
+  const totalPoints=completed.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id],playerScores[m.id]).total,0);
   const statCards=[
     {icon:"🎯",label:"Total Points",val:totalPoints,color:"#fbbf24"},
     {icon:"🏏",label:"Matches",val:completed.length,color:"#60a5fa"},
@@ -590,7 +595,7 @@ function MyStatsPage({user,matches,results,userSel}) {
       {completed.length===0
         ?<div style={{...S.card,textAlign:"center",color:"#475569",padding:"48px"}}>No completed matches yet. Make your selections!</div>
         :completed.map(m=>{
-          const {breakdown,total}=calcPoints(userSel[m.id],results[m.id]);
+          const {breakdown,total}=calcPoints(userSel[m.id],results[m.id],playerScores[m.id]);
           return (
             <div key={m.id} style={{...S.card,marginBottom:"10px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",flexWrap:"wrap",gap:"8px"}}>
@@ -1374,10 +1379,10 @@ export default function App() {
 
         {/* Page Content */}
         {selectedMatch
-          ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave} insights={insights[selectedMatch.id]}/>
+          ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave} insights={insights[selectedMatch.id]} playerScores={playerScores}/>
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
-          :page==="leaderboard"?<LeaderboardPage matches={matches} results={results} allSelections={allSelections}/>
-          :page==="stats"?<MyStatsPage user={user} matches={matches} results={results} userSel={userSel}/>
+          :page==="leaderboard"?<LeaderboardPage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores}/>
+          :page==="stats"?<MyStatsPage user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores}/>
           :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :null
         }

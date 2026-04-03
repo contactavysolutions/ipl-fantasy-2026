@@ -703,7 +703,7 @@ const SEL_FIELDS=[
   {key:"losingHorse",label:"💀 Horse",type:"fantasy"},
 ];
 
-function PlayerSelectionsTab({matches,allSelections,onSaveSelection}) {
+function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=false}) {
   const [now]=useState(new Date());
   const [selectedMatchId,setSelectedMatchId]=useState("");
   const [editingPlayer,setEditingPlayer]=useState(null);
@@ -749,7 +749,7 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection}) {
 
   return (
     <div>
-      <div style={S.sectionTitle}>View & Edit Player Selections</div>
+      <div style={S.sectionTitle}>{readOnly ? "View All Player Selections" : "View & Edit Player Selections"}</div>
       <div style={{marginBottom:"16px"}}>
         <label style={S.label}>Select Match</label>
         <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>{setSelectedMatchId(e.target.value);setEditingPlayer(null);setSavedMsg("");}}>
@@ -769,7 +769,7 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection}) {
                 <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.03)"}}>
                   <th style={{padding:"10px 12px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase",position:"sticky",left:0,background:"#0d1117",zIndex:2,minWidth:"110px"}}>Player</th>
                   {SEL_FIELDS.map(f=><th key={f.key} style={{padding:"10px 8px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"10px",letterSpacing:"0.5px",textTransform:"uppercase",whiteSpace:"nowrap"}}>{f.label}</th>)}
-                  <th style={{padding:"10px 8px",textAlign:"center",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase",minWidth:"100px"}}>Actions</th>
+                  {!readOnly && <th style={{padding:"10px 8px",textAlign:"center",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase",minWidth:"100px"}}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -794,7 +794,7 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection}) {
                           }
                         </td>
                       ))}
-                      <td style={{padding:"6px 8px",textAlign:"center",whiteSpace:"nowrap"}}>
+                      {!readOnly && <td style={{padding:"6px 8px",textAlign:"center",whiteSpace:"nowrap"}}>
                         {isEditing
                           ?<>
                             <button style={{...S.btn("primary"),padding:"5px 10px",fontSize:"11px",marginRight:"4px"}} onClick={()=>handleSave(name)} disabled={saving}>{saving?"...":"Save"}</button>
@@ -802,7 +802,7 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection}) {
                           </>
                           :<button style={{...S.btn("ghost"),padding:"5px 10px",fontSize:"11px",border:"1px solid rgba(255,165,0,0.3)",color:"#FFD700"}} onClick={()=>startEdit(name)}>Edit</button>
                         }
-                      </td>
+                      </td>}
                     </tr>
                   );
                 })}
@@ -1330,6 +1330,7 @@ export default function App() {
     {id:"matches",icon:"🏏",label:"Matches"},
     {id:"leaderboard",icon:"🏆",label:"Board"},
     {id:"stats",icon:"📊",label:"Stats"},
+    {id:"selections",icon:"📋",label:"Selections"},
     ...(user?.isAdmin?[{id:"admin",icon:"⚙️",label:"Admin"}]:[]),
   ];
 
@@ -1383,6 +1384,7 @@ export default function App() {
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
           :page==="leaderboard"?<LeaderboardPage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores}/>
           :page==="stats"?<MyStatsPage user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores}/>
+          :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true}/></div>
           :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :null
         }

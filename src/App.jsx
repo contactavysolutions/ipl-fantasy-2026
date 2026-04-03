@@ -901,7 +901,176 @@ function AIInsightsTab({matches}) {
   );
 }
 
-function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection}) {
+// ─── PLAYER SCORES TAB ────────────────────────────────────────────────────────
+function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScores}) {
+  const [selectedMatchId, setSelectedMatchId] = useState("");
+  const [scores, setScores] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState("");
+
+  const now = new Date();
+  const lockedMatches = matches.filter(m => now >= new Date(m.lock_time));
+  const m = lockedMatches.find(x => String(x.id) === String(selectedMatchId));
+
+  let targetPlayers = [];
+  if (m) {
+    const pSet = new Set();
+    Object.values(allSelections).forEach(userSels => {
+      const matchSel = userSels[m.id];
+      if (matchSel) {
+        if (matchSel.bestBatsman) pSet.add(matchSel.bestBatsman);
+        if (matchSel.bestBowler) pSet.add(matchSel.bestBowler);
+        if (matchSel.duckBatsman) pSet.add(matchSel.duckBatsman);
+        if (matchSel.dotBallBowler) pSet.add(matchSel.dotBallBowler);
+        if (matchSel.winningHorse) pSet.add(matchSel.winningHorse);
+        if (matchSel.losingHorse) pSet.add(matchSel.losingHorse);
+      }
+    });
+    targetPlayers = Array.from(pSet).filter(Boolean).sort();
+  }
+
+  useEffect(() => {
+    if (m) {
+      const initial = {};
+      targetPlayers.forEach(p => {
+        const existing = playerScores[m.id]?.[p] || {};
+        initial[p] = {
+           runs: existing.runs ?? "", fours: existing.fours ?? "", sixes: existing.sixes ?? "", 
+           wickets: existing.wickets ?? "", maidens: existing.maidens ?? "", dot_balls: existing.dot_balls ?? ""
+        };
+      });
+      setScores(initial);
+    } else {
+      setScores({});
+    }
+  }, [selectedMatchId, m, playerScores]);
+
+  const updateVal = (player, field, val) => {
+    setScores(prev => ({
+      ...prev,
+      [player]: { ...prev[player], [field]: val }
+    }));
+  };
+
+  const getCalc = (player) => {
+    const s = scores[player] || {};
+    const runs = parseInt(s.runs) || 0;
+    const fours = parseInt(s.fours) || 0;
+    const sixes = parseInt(s.sixes) || 0;
+    const wickets = parseInt(s.wickets) || 0;
+    const maidens = parseInt(s.maidens) || 0;
+    const dot_balls = parseInt(s.dot_balls) || 0;
+
+    let runsBonus = 0;
+    if (runs >= 100) runsBonus = 25;
+    else if (runs >= 50) runsBonus = 15;
+
+    const batsman_score = runs + runsBonus + (fours * 2) + (sixes * 3);
+    const bowler_score = (wickets * 25) + (maidens * 25);
+    const dot_ball_score = dot_balls * 5;
+
+    return { batsman_score, bowler_score, dot_ball_score };
+  };
+
+  const handleSave = async () => {
+    if (!m) return;
+    setSaving(true);
+    const scoresArray = targetPlayers.map(p => {
+      const s = scores[p] || {};
+      const calc = getCalc(p);
+      return {
+        player_name: p,
+        runs: s.runs !== "" ? parseInt(s.runs) : null,
+        fours: s.fours !== "" ? parseInt(s.fours) : null,
+        sixes: s.sixes !== "" ? parseInt(s.sixes) : null,
+        wickets: s.wickets !== "" ? parseInt(s.wickets) : null,
+        maidens: s.maidens !== "" ? parseInt(s.maidens) : null,
+        dot_balls: s.dot_balls !== "" ? parseInt(s.dot_balls) : null,
+        batsman_score: calc.batsman_score || null,
+        bowler_score: calc.bowler_score || null,
+        dot_ball_score: calc.dot_ball_score || null
+      };
+    });
+    await onSavePlayerScores(m.id, scoresArray);
+    setSaving(false);
+    setSavedMsg("Scores saved successfully ✓");
+    setTimeout(() => setSavedMsg(""), 3000);
+  };
+
+  const InputField = ({player, field}) => (
+    <input 
+      style={{...S.input, padding:"4px 6px", fontSize:"12px", width:"100%", background:"rgba(0,0,0,0.2)"}} 
+      type="number"
+      value={scores[player]?.[field] ?? ""}
+      onChange={e => updateVal(player, field, e.target.value)}
+    />
+  );
+
+  return (
+    <div>
+      <div style={S.sectionTitle}>Add Player Scores</div>
+      <div style={{marginBottom:"16px"}}>
+        <label style={S.label}>Select Match</label>
+        <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>{setSelectedMatchId(e.target.value);setSavedMsg("");}}>
+          <option value="">-- Select a locked match --</option>
+          {lockedMatches.map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
+        </select>
+      </div>
+      {savedMsg && <div style={{color:"#00c864",fontSize:"13px",marginBottom:"12px"}}>✓ {savedMsg}</div>}
+      
+      {m && targetPlayers.length > 0 && (
+        <>
+          <div style={{fontSize:"13px",color:"#4db8ff",marginBottom:"14px"}}>📋 {targetPlayers.length} unique players selected by fantasy managers.</div>
+          <div style={{...S.card,padding:"0",overflow:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px",minWidth:"900px"}}>
+              <thead>
+                <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.03)"}}>
+                  <th style={{padding:"8px 10px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"11px",position:"sticky",left:0,background:"#0d1117",zIndex:2}}>Player</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#FFD700",fontWeight:"normal",fontSize:"10px"}}>Runs (&gt;50 +15, &gt;100 +25)</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#FFD700",fontWeight:"normal",fontSize:"10px"}}>Fours (2)</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#FFD700",fontWeight:"normal",fontSize:"10px"}}>Sixes (3)</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#60a5fa",fontWeight:"normal",fontSize:"10px"}}>Wickets (25)</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#60a5fa",fontWeight:"normal",fontSize:"10px"}}>Maidens (25)</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#4ade80",fontWeight:"normal",fontSize:"10px"}}>Dot Balls (5)</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#f8fafc",fontWeight:"bold",fontSize:"11px"}}>Batsman Total</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#f8fafc",fontWeight:"bold",fontSize:"11px"}}>Bowler Total</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#f8fafc",fontWeight:"bold",fontSize:"11px"}}>Dot Ball Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {targetPlayers.map((p,i) => {
+                  const calc = getCalc(p);
+                  return (
+                    <tr key={p} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)"}}>
+                      <td style={{padding:"6px 10px",color:"#e8e0d0",fontWeight:"bold",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>{p}</td>
+                      <td style={{padding:"6px 4px"}}><InputField player={p} field="runs"/></td>
+                      <td style={{padding:"6px 4px"}}><InputField player={p} field="fours"/></td>
+                      <td style={{padding:"6px 4px"}}><InputField player={p} field="sixes"/></td>
+                      <td style={{padding:"6px 4px"}}><InputField player={p} field="wickets"/></td>
+                      <td style={{padding:"6px 4px"}}><InputField player={p} field="maidens"/></td>
+                      <td style={{padding:"6px 4px"}}><InputField player={p} field="dot_balls"/></td>
+                      <td style={{padding:"6px 4px",textAlign:"center",color:"#FFD700",fontWeight:"bold"}}>{calc.batsman_score}</td>
+                      <td style={{padding:"6px 4px",textAlign:"center",color:"#60a5fa",fontWeight:"bold"}}>{calc.bowler_score}</td>
+                      <td style={{padding:"6px 4px",textAlign:"center",color:"#4ade80",fontWeight:"bold"}}>{calc.dot_ball_score}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{marginTop:"16px"}}>
+            <button style={{...S.btn("primary"),padding:"10px 20px"}} onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Player Scores"}
+            </button>
+          </div>
+        </>
+      )}
+      {m && targetPlayers.length === 0 && <div style={{color:"#888",fontSize:"13px"}}>No players were selected by fantasy managers for this match.</div>}
+    </div>
+  );
+}
+
+function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,playerScores,onSavePlayerScores}) {
   const [adminTab,setAdminTab]=useState("results");
   const [selectedMatch,setSelectedMatch]=useState(null);
   const [now]=useState(new Date());
@@ -950,11 +1119,12 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection})
       <h1 style={S.h1}>Admin Panel</h1>
       <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
         <button style={S.navBtn(adminTab==="results")} onClick={()=>setAdminTab("results")}>Match Results</button>
+        <button style={S.navBtn(adminTab==="scores")} onClick={()=>setAdminTab("scores")}>Player Scores</button>
         <button style={S.navBtn(adminTab==="selections")} onClick={()=>setAdminTab("selections")}>Player Selections</button>
         <button style={S.navBtn(adminTab==="insights")} onClick={()=>setAdminTab("insights")}>AI Insights</button>
         <button style={S.navBtn(adminTab==="users")} onClick={()=>setAdminTab("users")}>Player Passwords</button>
       </div>
-      {adminTab==="users"?<UserManagementTab/>:adminTab==="selections"?<PlayerSelectionsTab matches={matches} allSelections={allSelections} onSaveSelection={onSaveSelection}/>:adminTab==="insights"?<AIInsightsTab matches={matches}/>:(
+      {adminTab==="users"?<UserManagementTab/>:adminTab==="scores"?<PlayerScoresTab matches={matches} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>:adminTab==="selections"?<PlayerSelectionsTab matches={matches} allSelections={allSelections} onSaveSelection={onSaveSelection}/>:adminTab==="insights"?<AIInsightsTab matches={matches}/>:(
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:"16px"}}>
           <div>
             <div style={S.sectionTitle}>Locked / Completed Matches</div>
@@ -1072,6 +1242,7 @@ export default function App() {
   const [results,setResults]=useState({});
   const [allSelections,setAllSelections]=useState({});
   const [insights,setInsights]=useState({});
+  const [playerScores,setPlayerScores]=useState({});
   const [loading,setLoading]=useState(true);
 
   const userSel=user?(allSelections[user.username]||{}):{};
@@ -1084,7 +1255,8 @@ export default function App() {
       supa.query("results",{select:"*"}),
       supa.query("selections",{select:"*"}),
       supa.query("match_insights",{select:"*"}).catch(()=>[]),
-    ]).then(([matchData,resultData,selData,insightsData])=>{
+      supa.query("player_scores",{select:"*"}).catch(()=>[]),
+    ]).then(([matchData,resultData,selData,insightsData,playerScoresData])=>{
       setMatches(matchData||[]);
       const resMap={};
       (resultData||[]).forEach(r=>{resMap[r.match_id]={winningTeam:r.winning_team,runMargin:r.run_margin,wicketMargin:r.wicket_margin,topScorer:r.top_scorer,topScorerRuns:r.top_scorer_runs,bestBowler:r.best_bowler,bestBowlerPoints:r.best_bowler_points,powerplayWinner:r.powerplay_winner,powerplayScore:r.powerplay_score,powerplayDiff:r.powerplay_diff,dotBallLeader:r.dot_ball_leader,dotBalls:r.dot_balls,totalWickets:r.total_wickets,wicketsRange:r.wickets_range,duckBatsmen:r.duck_batsmen||[],matchTopPlayer:r.match_top_player,matchBottomPlayer:r.match_bottom_player};});
@@ -1098,6 +1270,12 @@ export default function App() {
       const iMap={};
       (Array.isArray(insightsData)?insightsData:[]).forEach(i=>{iMap[i.match_id]=i;});
       setInsights(iMap);
+      const scoreMap={};
+      (Array.isArray(playerScoresData)?playerScoresData:[]).forEach(s=>{
+        if(!scoreMap[s.match_id]) scoreMap[s.match_id]={};
+        scoreMap[s.match_id][s.player_name]=s;
+      });
+      setPlayerScores(scoreMap);
       setLoading(false);
     }).catch(()=>setLoading(false));
   },[user]);
@@ -1118,6 +1296,29 @@ export default function App() {
   const onSaveSelection=useCallback(async(username,matchId,sel)=>{
     await supa.upsert("selections",{username,match_id:matchId,winning_team:sel.winningTeam,best_batsman:sel.bestBatsman,best_bowler:sel.bestBowler,powerplay_winner:sel.powerplayWinner,dot_ball_bowler:sel.dotBallBowler,total_wickets:sel.totalWickets,duck_batsman:sel.duckBatsman,double_category:sel.doubleCategory,winning_horse:sel.winningHorse,losing_horse:sel.losingHorse,saved_at:new Date().toISOString()},"username,match_id");
     setAllSelections(prev=>({...prev,[username]:{...(prev[username]||{}),[matchId]:sel}}));
+  },[]);
+
+  const onSavePlayerScores=useCallback(async(matchId, scoresArray)=>{
+    await Promise.all(scoresArray.map(s => 
+      supa.upsert("player_scores", {
+        match_id: matchId,
+        player_name: s.player_name,
+        runs: s.runs,
+        fours: s.fours,
+        sixes: s.sixes,
+        wickets: s.wickets,
+        maidens: s.maidens,
+        dot_balls: s.dot_balls,
+        batsman_score: s.batsman_score,
+        bowler_score: s.bowler_score,
+        dot_ball_score: s.dot_ball_score
+      }, "match_id,player_name")
+    ));
+    setPlayerScores(prev=>{
+      const mScores = {...(prev[matchId]||{})};
+      scoresArray.forEach(s => mScores[s.player_name] = s);
+      return {...prev, [matchId]: mScores};
+    });
   },[]);
 
   const navItems=[
@@ -1177,7 +1378,7 @@ export default function App() {
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
           :page==="leaderboard"?<LeaderboardPage matches={matches} results={results} allSelections={allSelections}/>
           :page==="stats"?<MyStatsPage user={user} matches={matches} results={results} userSel={userSel}/>
-          :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection}/>
+          :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :null
         }
       </div>

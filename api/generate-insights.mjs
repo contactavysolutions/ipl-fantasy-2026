@@ -101,5 +101,6 @@ export default async (req) => {
 
 // Netlify scheduled function config
 export const config = {
+  runtime: 'edge',
   schedule: "0 * * * *", // Every hour
 };

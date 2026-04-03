@@ -2,6 +2,10 @@
 // Triggered from Admin Panel
 import { supabaseQuery, supabaseUpsert, generateInsights } from "./lib/insights.mjs";
 
+export const config = {
+  runtime: 'edge',
+};
+
 export default async (req) => {
   // Only allow POST requests (though Netlify handles others too)
   if (req.method !== "POST") {

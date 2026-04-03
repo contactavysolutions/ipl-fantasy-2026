@@ -829,13 +829,14 @@ function AIInsightsTab({matches}) {
       // Better error handling for non-JSON responses (like 404s in dev)
       if (!res.ok) {
         let errDetail = "";
+        const rawText = await res.text();
         try {
-          const errData = await res.json();
+          const errData = JSON.parse(rawText);
           errDetail = errData.error || errData.message || "";
         } catch(e) {
-          errDetail = await res.text();
+          errDetail = rawText;
         }
-        throw new Error(`Server returned ${res.status}: ${errDetail.substring(0, 50) || "Is 'netlify dev' running?"}`);
+        throw new Error(`Server returned ${res.status}: ${errDetail.substring(0, 50) || "Is dev environment running?"}`);
       }
 
       const data = await res.json();

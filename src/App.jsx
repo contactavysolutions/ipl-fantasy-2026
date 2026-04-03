@@ -505,7 +505,7 @@ function SelectionForm({match,user,onBack,results,userSel,onSave,insights,player
 }
 
 // ─── LEADERBOARD ──────────────────────────────────────────────────────────────
-function LeaderboardPage({matches,results,allSelections,playerScores}) {
+function LeaderboardContent({matches,results,allSelections,playerScores}) {
   const completed=matches.filter(m=>results[m.id]);
   const scores=FANTASY_PLAYERS.map(name=>{
     const uname=name.toLowerCase().replace(/\s/g,"_");
@@ -517,13 +517,12 @@ function LeaderboardPage({matches,results,allSelections,playerScores}) {
   const medals=["🥇","🥈","🥉"];
   const maxPts=scores[0]?.total||1;
   return (
-    <div style={S.page}>
+    <div>
       <style>{`
         .lb-row{transition:all 0.2s ease;}
         .lb-row:hover{background:rgba(255,255,255,0.06)!important;}
       `}</style>
-      <h1 style={S.h1}>Leaderboard</h1>
-      <p style={{color:"#64748b",fontSize:"13px",marginBottom:"24px"}}>{completed.length} matches completed · Season standings</p>
+      <div style={{color:"#64748b",fontSize:"13px",marginBottom:"20px"}}>{completed.length} matches completed</div>
 
       {/* Top 3 Podium */}
       {scores.length>=3&&(
@@ -573,7 +572,7 @@ function LeaderboardPage({matches,results,allSelections,playerScores}) {
 }
 
 // ─── MY STATS ─────────────────────────────────────────────────────────────────
-function MyStatsPage({user,matches,results,userSel,playerScores}) {
+function MyStatsContent({user,matches,results,userSel,playerScores}) {
   const completed=matches.filter(m=>results[m.id]&&userSel[m.id]);
   const totalPoints=completed.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id],playerScores[m.id]).total,0);
   const statCards=[
@@ -582,9 +581,8 @@ function MyStatsPage({user,matches,results,userSel,playerScores}) {
     {icon:"📈",label:"Avg/Match",val:completed.length?Math.round(totalPoints/completed.length):0,color:"#4ade80"},
   ];
   return (
-    <div style={S.page}>
-      <h1 style={S.h1}>My Stats</h1>
-      <p style={{color:"#64748b",fontSize:"13px",marginBottom:"20px"}}>{user.displayName}</p>
+    <div>
+      <div style={{color:"#64748b",fontSize:"13px",marginBottom:"20px"}}>Viewing stats for: <span style={{color:"#fbbf24",fontWeight:600}}>{user.displayName}</span></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"24px"}}>
         {statCards.map(({icon,label,val,color})=>(
           <div key={label} style={{...S.card,textAlign:"center",padding:"16px 8px"}}>
@@ -620,6 +618,25 @@ function MyStatsPage({user,matches,results,userSel,playerScores}) {
           );
         })
       }
+    </div>
+  );
+}
+
+// ─── UNIFIED LEADERBOARD PAGE ─────────────────────────────────────────────────
+function LeaderboardPage({user, matches, results, allSelections, userSel, playerScores}) {
+  const [tab, setTab] = useState("board");
+  return (
+    <div style={S.page}>
+      <h1 style={S.h1}>Leaderboard & Stats</h1>
+      <p style={{color:"#64748b",fontSize:"13px",marginBottom:"20px"}}>Season standings and historical data</p>
+
+      <div style={{display:"flex",gap:"6px",marginBottom:"20px",borderBottom:"1px solid rgba(255,255,255,0.1)",paddingBottom:"10px",flexWrap:"wrap"}}>
+        <button style={S.navBtn(tab==="board")} onClick={()=>setTab("board")}>🏆 Overall Leaderboard</button>
+        <button style={S.navBtn(tab==="stats")} onClick={()=>setTab("stats")}>📊 My Performance</button>
+      </div>
+
+      {tab === "board" && <LeaderboardContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
+      {tab === "stats" && <MyStatsContent user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores} />}
     </div>
   );
 }
@@ -1417,7 +1434,6 @@ export default function App() {
     {id:"selections",icon:"📋",label:"Picks"},
     {id:"live",icon:"🔴",label:"Live"},
     {id:"leaderboard",icon:"🏆",label:"Board"},
-    {id:"stats",icon:"📊",label:"Stats"},
     ...(user?.isAdmin?[{id:"admin",icon:"⚙️",label:"Admin"}]:[]),
   ];
 
@@ -1469,8 +1485,7 @@ export default function App() {
         {selectedMatch
           ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave} insights={insights[selectedMatch.id]} playerScores={playerScores}/>
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
-          :page==="leaderboard"?<LeaderboardPage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores}/>
-          :page==="stats"?<MyStatsPage user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores}/>
+          :page==="leaderboard"?<LeaderboardPage user={user} matches={matches} results={results} allSelections={allSelections} userSel={userSel} playerScores={playerScores}/>
           :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true}/></div>
           :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>

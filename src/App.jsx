@@ -73,22 +73,24 @@ function camelize(str) {
 }
 
 function calcPoints(sel, res, pScores = {}) {
-  if (!sel||!res) return {breakdown:{},total:0};
+  if (!sel) return {breakdown:{},total:0};
   const bd = {};
   
   const getB = (player) => pScores[player]?.batsman_score || 0;
   const getBW = (player) => pScores[player]?.bowler_score || 0;
   const getDB = (player) => pScores[player]?.dot_ball_score || 0;
 
-  bd.winningTeam = sel.winningTeam===res.winningTeam ? 50+Math.round((res.runMargin||0)/((res.wicketMargin||1)*5)) : 0;
-  bd.bestBatsman = getB(sel.bestBatsman) + (sel.bestBatsman===res.topScorer ? (res.topScorerRuns||0)+50 : 0);
-  bd.bestBowler = getBW(sel.bestBowler) + (sel.bestBowler===res.bestBowler ? (res.bestBowlerPoints||0)+50 : 0);
-  bd.powerplayWinner = sel.powerplayWinner===res.powerplayWinner ? (res.powerplayScore||0)+(res.powerplayDiff||0) : 0;
-  bd.dotBallBowler = getDB(sel.dotBallBowler) + (sel.dotBallBowler===res.dotBallLeader ? 50+(res.dotBalls||0)*5 : 0);
-  bd.totalWickets = sel.totalWickets===res.wicketsRange ? (res.totalWickets||0)*5 : 0;
-  bd.duckBatsman = (res.duckBatsmen||[]).includes(sel.duckBatsman) ? 100 : 0;
-  bd.winningHorse = sel.winningHorse&&res.matchTopPlayer&&sel.winningHorse===res.matchTopPlayer ? 100 : 0;
-  bd.losingHorse = sel.losingHorse&&res.matchBottomPlayer&&sel.losingHorse===res.matchBottomPlayer ? 100 : 0;
+  const r = res || {};
+
+  bd.winningTeam = sel.winningTeam===r.winningTeam ? 50+Math.round((r.runMargin||0)/((r.wicketMargin||1)*5)) : 0;
+  bd.bestBatsman = getB(sel.bestBatsman) + (sel.bestBatsman===r.topScorer ? (r.topScorerRuns||0)+50 : 0);
+  bd.bestBowler = getBW(sel.bestBowler) + (sel.bestBowler===r.bestBowler ? (r.bestBowlerPoints||0)+50 : 0);
+  bd.powerplayWinner = sel.powerplayWinner===r.powerplayWinner ? (r.powerplayScore||0)+(r.powerplayDiff||0) : 0;
+  bd.dotBallBowler = getDB(sel.dotBallBowler) + (sel.dotBallBowler===r.dotBallLeader ? 50+(r.dotBalls||0)*5 : 0);
+  bd.totalWickets = sel.totalWickets===r.wicketsRange ? (r.totalWickets||0)*5 : 0;
+  bd.duckBatsman = (r.duckBatsmen||[]).includes(sel.duckBatsman) ? 100 : 0;
+  bd.winningHorse = sel.winningHorse&&r.matchTopPlayer&&sel.winningHorse===r.matchTopPlayer ? 100 : 0;
+  bd.losingHorse = sel.losingHorse&&r.matchBottomPlayer&&sel.losingHorse===r.matchBottomPlayer ? 100 : 0;
   if (sel.doubleCategory&&bd[camelize(sel.doubleCategory)]!==undefined) {
     const key = camelize(sel.doubleCategory);
     bd[key] = bd[key]*2;
@@ -1235,6 +1237,90 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
   );
 }
 
+// ─── LIVE SCORE PAGE ──────────────────────────────────────────────────────────
+function LiveScorePage({matches, results, allSelections, playerScores, onSavePlayerScores}) {
+  const [tab, setTab] = useState("grid");
+  return (
+    <div style={S.page}>
+      <h1 style={S.h1}>Live Match Center</h1>
+      <p style={{color:"#64748b",fontSize:"13px",marginBottom:"24px"}}>Track live scores or manually update player stats</p>
+      
+      <div style={{display:"flex",gap:"6px",marginBottom:"20px",borderBottom:"1px solid rgba(255,255,255,0.1)",paddingBottom:"10px",flexWrap:"wrap"}}>
+        <button style={S.navBtn(tab==="grid")} onClick={()=>setTab("grid")}>🔴 Live Leaderboard</button>
+        <button style={S.navBtn(tab==="update")} onClick={()=>setTab("update")}>✏️ Update Player Stats</button>
+      </div>
+
+      {tab==="grid" && <LiveGrid matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
+      {tab==="update" && <PlayerScoresTab matches={matches} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} />}
+    </div>
+  );
+}
+
+function LiveGrid({matches, results, allSelections, playerScores}) {
+  const [now] = useState(new Date());
+  const lockedMatches = matches.filter(m => now >= new Date(m.lock_time));
+  const [selectedMatchId, setSelectedMatchId] = useState("");
+
+  const m = lockedMatches.find(x => String(x.id) === String(selectedMatchId));
+  
+  return (
+    <div>
+      <div style={{marginBottom:"16px"}}>
+        <label style={S.label}>Select Match to Track</label>
+        <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>setSelectedMatchId(e.target.value)}>
+          <option value="">-- Select a match --</option>
+          {lockedMatches.map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
+        </select>
+      </div>
+
+      {!m && selectedMatchId==="" && <div style={{...S.card,textAlign:"center",color:"#555",padding:"40px"}}>Select a match above to view live scores</div>}
+
+      {m && (
+        <div style={{...S.card,padding:"0",overflow:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px",minWidth:"900px"}}>
+            <thead>
+              <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.03)"}}>
+                <th style={{padding:"8px 10px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"11px",position:"sticky",left:0,background:"#0d1117",zIndex:2}}>Fantasy Player</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#888",fontWeight:"normal",fontSize:"10px"}}>Winning Team</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#888",fontWeight:"normal",fontSize:"10px"}}>Best Bat</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#888",fontWeight:"normal",fontSize:"10px"}}>Best Bowl</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#888",fontWeight:"normal",fontSize:"10px"}}>PP Winner</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#888",fontWeight:"normal",fontSize:"10px"}}>Dot-Ball</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#888",fontWeight:"normal",fontSize:"10px"}}>Wickets</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#888",fontWeight:"normal",fontSize:"10px"}}>Duck</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#888",fontWeight:"normal",fontSize:"10px"}}>Horses</th>
+                <th style={{padding:"8px 4px",textAlign:"right",color:"#fbbf24",fontWeight:"bold",fontSize:"12px"}}>Total Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FANTASY_PLAYERS.map((name) => {
+                const uname = name.toLowerCase().replace(/\s/g,"_");
+                const sel = allSelections[uname]?.[m.id];
+                if (!sel) return null; // Hide users without selections
+                const pts = calcPoints(sel, results[m.id], playerScores[m.id]||{});
+                return { name, bd: pts.breakdown, total: pts.total };
+              }).filter(Boolean).sort((a,b)=>b.total - a.total).map((row, i) => (
+                <tr key={row.name} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)"}}>
+                  <td style={{padding:"6px 10px",color:"#e8e0d0",fontWeight:"bold",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>{row.name}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.winningTeam>0?"#4ade80":"#64748b"}}>{row.bd.winningTeam||0}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.bestBatsman>0?"#4ade80":"#64748b"}}>{row.bd.bestBatsman||0}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.bestBowler>0?"#4ade80":"#64748b"}}>{row.bd.bestBowler||0}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.powerplayWinner>0?"#4ade80":"#64748b"}}>{row.bd.powerplayWinner||0}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.dotBallBowler>0?"#4ade80":"#64748b"}}>{row.bd.dotBallBowler||0}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.totalWickets>0?"#4ade80":"#64748b"}}>{row.bd.totalWickets||0}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.duckBatsman>0?"#4ade80":"#64748b"}}>{row.bd.duckBatsman||0}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:(row.bd.winningHorse||0)+(row.bd.losingHorse||0)>0?"#4ade80":"#64748b"}}>{(row.bd.winningHorse||0)+(row.bd.losingHorse||0)}</td>
+                  <td style={{padding:"6px 4px",textAlign:"right",color:"#fbbf24",fontWeight:"bold",fontSize:"14px"}}>{row.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── APP SHELL ────────────────────────────────────────────────────────────────
 export default function App() {
   const [user,setUser]=useState(()=>{try{return JSON.parse(sessionStorage.getItem("ipl_user")||"null");}catch{return null;}});
@@ -1328,9 +1414,10 @@ export default function App() {
 
   const navItems=[
     {id:"matches",icon:"🏏",label:"Matches"},
+    {id:"selections",icon:"📋",label:"Picks"},
+    {id:"live",icon:"🔴",label:"Live"},
     {id:"leaderboard",icon:"🏆",label:"Board"},
     {id:"stats",icon:"📊",label:"Stats"},
-    {id:"selections",icon:"📋",label:"Selections"},
     ...(user?.isAdmin?[{id:"admin",icon:"⚙️",label:"Admin"}]:[]),
   ];
 
@@ -1385,6 +1472,7 @@ export default function App() {
           :page==="leaderboard"?<LeaderboardPage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores}/>
           :page==="stats"?<MyStatsPage user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores}/>
           :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true}/></div>
+          :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :null
         }

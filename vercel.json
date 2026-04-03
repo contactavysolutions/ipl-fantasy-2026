@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/generate-insights",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ],
   "rewrites": [

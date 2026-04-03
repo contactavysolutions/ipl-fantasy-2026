@@ -99,8 +99,7 @@ export default async (req) => {
   }
 };
 
-// Netlify scheduled function config
+// Vercel edge configuration
 export const config = {
-  runtime: 'edge',
-  schedule: "0 * * * *", // Every hour
+  runtime: 'edge'
 };

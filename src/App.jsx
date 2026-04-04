@@ -506,12 +506,13 @@ function SelectionForm({match,user,onBack,results,userSel,onSave,insights,player
 
 // ─── LEADERBOARD ──────────────────────────────────────────────────────────────
 function LeaderboardContent({matches,results,allSelections,playerScores}) {
-  const completed=matches.filter(m=>results[m.id]);
+  const now = new Date();
+  const activeMatches = matches.filter(m => now >= new Date(m.lock_time));
   const scores=FANTASY_PLAYERS.map(name=>{
     const uname=name.toLowerCase().replace(/\s/g,"_");
     const uSel=allSelections[uname]||{};
     let total=0,matchCount=0;
-    completed.forEach(m=>{if(uSel[m.id]){total+=calcPoints(uSel[m.id],results[m.id],playerScores[m.id]).total;matchCount++;}});
+    activeMatches.forEach(m=>{if(uSel[m.id]){total+=calcPoints(uSel[m.id],results[m.id],playerScores[m.id]).total;matchCount++;}});
     return {name,total,matchCount};
   }).sort((a,b)=>b.total-a.total);
   const medals=["🥇","🥈","🥉"];
@@ -522,7 +523,7 @@ function LeaderboardContent({matches,results,allSelections,playerScores}) {
         .lb-row{transition:all 0.2s ease;}
         .lb-row:hover{background:rgba(255,255,255,0.06)!important;}
       `}</style>
-      <div style={{color:"#64748b",fontSize:"13px",marginBottom:"20px"}}>{completed.length} matches completed</div>
+      <div style={{color:"#64748b",fontSize:"13px",marginBottom:"20px"}}>{activeMatches.length} matches actively scored</div>
 
       {/* Top 3 Podium */}
       {scores.length>=3&&(
@@ -573,12 +574,13 @@ function LeaderboardContent({matches,results,allSelections,playerScores}) {
 
 // ─── MY STATS ─────────────────────────────────────────────────────────────────
 function MyStatsContent({user,matches,results,userSel,playerScores}) {
-  const completed=matches.filter(m=>results[m.id]&&userSel[m.id]);
-  const totalPoints=completed.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id],playerScores[m.id]).total,0);
+  const now = new Date();
+  const activeMatches = matches.filter(m => now >= new Date(m.lock_time) && userSel[m.id]);
+  const totalPoints = activeMatches.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id],playerScores[m.id]).total,0);
   const statCards=[
     {icon:"🎯",label:"Total Points",val:totalPoints,color:"#fbbf24"},
-    {icon:"🏏",label:"Matches",val:completed.length,color:"#60a5fa"},
-    {icon:"📈",label:"Avg/Match",val:completed.length?Math.round(totalPoints/completed.length):0,color:"#4ade80"},
+    {icon:"🏏",label:"Matches",val:activeMatches.length,color:"#60a5fa"},
+    {icon:"📈",label:"Avg/Match",val:activeMatches.length?Math.round(totalPoints/activeMatches.length):0,color:"#4ade80"},
   ];
   return (
     <div>
@@ -592,9 +594,9 @@ function MyStatsContent({user,matches,results,userSel,playerScores}) {
           </div>
         ))}
       </div>
-      {completed.length===0
-        ?<div style={{...S.card,textAlign:"center",color:"#475569",padding:"48px"}}>No completed matches yet. Make your selections!</div>
-        :completed.map(m=>{
+      {activeMatches.length === 0
+        ?<div style={{...S.card,textAlign:"center",color:"#475569",padding:"48px"}}>No active matches yet. Make your selections!</div>
+        :activeMatches.map(m=>{
           const {breakdown,total}=calcPoints(userSel[m.id],results[m.id],playerScores[m.id]);
           return (
             <div key={m.id} style={{...S.card,marginBottom:"10px"}}>

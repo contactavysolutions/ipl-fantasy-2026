@@ -624,6 +624,118 @@ function MyStatsContent({user,matches,results,userSel,playerScores}) {
   );
 }
 
+// ─── CONSOLIDATED SCORE ───────────────────────────────────────────────────────
+function ConsolidatedScoreContent({matches, results, allSelections, playerScores}) {
+  const now = new Date();
+  const activeMatches = matches.filter(m => now >= new Date(m.lock_time));
+  
+  const ptsGrid = {};
+  FANTASY_PLAYERS.forEach(p => ptsGrid[p] = {});
+  activeMatches.forEach(m => {
+    FANTASY_PLAYERS.forEach(p => {
+      const uname = p.toLowerCase().replace(/\s/g,"_");
+      const uSel = allSelections[uname]||{};
+      ptsGrid[p][m.id] = calcPoints(uSel[m.id], results[m.id], playerScores[m.id]).total;
+    });
+  });
+
+  const totalPts = {};
+  FANTASY_PLAYERS.forEach(p => {
+    totalPts[p] = activeMatches.reduce((sum, m) => sum + (ptsGrid[p][m.id]||0), 0);
+  });
+
+  const rankGrid = {};
+  const winningsGrid = {};
+  const totalWinnings = {};
+  FANTASY_PLAYERS.forEach(p => { rankGrid[p] = {}; winningsGrid[p] = {}; totalWinnings[p] = 0; });
+
+  activeMatches.forEach(m => {
+    const mScores = FANTASY_PLAYERS.map(p => ({ player: p, pts: ptsGrid[p][m.id] }));
+    mScores.sort((a,b) => b.pts - a.pts);
+
+    let currentRank = 1;
+    mScores.forEach((s, idx) => {
+      if (idx > 0 && s.pts < mScores[idx-1].pts) {
+        currentRank = idx + 1; 
+      }
+      rankGrid[s.player][m.id] = currentRank;
+    });
+
+    const firstPlacePts = mScores[0].pts;
+    if (firstPlacePts > 0) {
+      const firstGroup = mScores.filter(s => s.pts === firstPlacePts);
+      let secondGroup = [];
+      if (firstGroup.length === 1 && mScores.length > 1) {
+        const secondPlacePts = mScores[1].pts;
+        if (secondPlacePts > 0) {
+          secondGroup = mScores.filter(s => s.pts === secondPlacePts);
+        }
+      }
+      
+      if (firstGroup.length === 2) {
+        firstGroup.forEach(s => winningsGrid[s.player][m.id] = 18.5);
+      } else if (firstGroup.length > 2) {
+        const payout = parseFloat((37 / firstGroup.length).toFixed(2));
+        firstGroup.forEach(s => winningsGrid[s.player][m.id] = payout);
+      } else if (firstGroup.length === 1) {
+        winningsGrid[firstGroup[0].player][m.id] = 25;
+        if (secondGroup.length > 0) {
+          const secondPayout = parseFloat((12 / secondGroup.length).toFixed(2));
+          secondGroup.forEach(s => winningsGrid[s.player][m.id] = secondPayout);
+        }
+      }
+    }
+    
+    FANTASY_PLAYERS.forEach(p => {
+      totalWinnings[p] = Number((totalWinnings[p] + (winningsGrid[p][m.id] || 0)).toFixed(2));
+    });
+  });
+
+  const renderTable = (title, rowFormatter, totals, totalTitle) => (
+    <div style={{marginBottom:"40px"}}>
+      <h3 style={{color:"#e8e0d0",fontSize:"16px",marginBottom:"12px"}}>{title}</h3>
+      <div style={{...S.card,padding:"0",overflowX:"auto"}}>
+        <table style={{borderCollapse:"collapse",fontSize:"12px",whiteSpace:"nowrap",minWidth:"100%"}}>
+          <thead>
+            <tr style={{background:"rgba(255,255,255,0.03)",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
+              <th style={{padding:"10px",color:"#888",fontWeight:600,textAlign:"left",position:"sticky",left:0,background:"#0d1117",zIndex:2}}>Player</th>
+              {totalTitle && <th style={{padding:"10px",color:"#fbbf24",fontWeight:700,textAlign:"right",minWidth:"60px",borderRight:"1px solid rgba(255,255,255,0.05)"}}>{totalTitle}</th>}
+              {activeMatches.map(m => (
+                <th key={m.id} style={{padding:"10px 8px",color:"#64748b",fontWeight:500,minWidth:"45px",textAlign:"center"}}>M{String(m.id).padStart(2,'0')}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {FANTASY_PLAYERS.map((p,i) => (
+              <tr key={p} style={{borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                <td style={{padding:"8px 10px",fontWeight:600,color:"#e2e8f0",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1}}>{p}</td>
+                {totalTitle && <td style={{padding:"8px 10px",fontWeight:800,color:"#fbbf24",textAlign:"right",borderRight:"1px solid rgba(255,255,255,0.05)"}}>{totalTitle==="Total $"?"$":""}{totals[p]}</td>}
+                {activeMatches.map(m => {
+                  const val = rowFormatter(p, m.id);
+                  const isZero = val === 0 || val === "-" || val === "$0";
+                  return (
+                    <td key={m.id} style={{padding:"8px",textAlign:"center",color:isZero?"#475569":"#cbd5e1",background:i%2===0?"transparent":"rgba(255,255,255,0.01)"}}>
+                      {val}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+       {renderTable("Match-by-Match Points", (p,mid) => ptsGrid[p][mid] || 0, totalPts, "Total Pts")}
+       {renderTable("Match-by-Match Winnings", (p,mid) => winningsGrid[p][mid] ? `$${winningsGrid[p][mid]}` : "-", totalWinnings, "Total $")}
+       {renderTable("Match-by-Match Ranks", (p,mid) => rankGrid[p][mid] || "-", null, null)}
+    </div>
+  );
+}
+
 // ─── UNIFIED LEADERBOARD PAGE ─────────────────────────────────────────────────
 function LeaderboardPage({user, matches, results, allSelections, userSel, playerScores}) {
   const [tab, setTab] = useState("board");
@@ -634,10 +746,12 @@ function LeaderboardPage({user, matches, results, allSelections, userSel, player
 
       <div style={{display:"flex",gap:"6px",marginBottom:"20px",borderBottom:"1px solid rgba(255,255,255,0.1)",paddingBottom:"10px",flexWrap:"wrap"}}>
         <button style={S.navBtn(tab==="board")} onClick={()=>setTab("board")}>🏆 Overall Leaderboard</button>
+        <button style={S.navBtn(tab==="consolidated")} onClick={()=>setTab("consolidated")}>📈 Consolidated Score</button>
         <button style={S.navBtn(tab==="stats")} onClick={()=>setTab("stats")}>📊 My Performance</button>
       </div>
 
       {tab === "board" && <LeaderboardContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
+      {tab === "consolidated" && <ConsolidatedScoreContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
       {tab === "stats" && <MyStatsContent user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores} />}
     </div>
   );

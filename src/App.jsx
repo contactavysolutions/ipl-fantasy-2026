@@ -1062,8 +1062,7 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
         if (matchSel.bestBowler) pSet.add(matchSel.bestBowler);
         if (matchSel.duckBatsman) pSet.add(matchSel.duckBatsman);
         if (matchSel.dotBallBowler) pSet.add(matchSel.dotBallBowler);
-        if (matchSel.winningHorse) pSet.add(matchSel.winningHorse);
-        if (matchSel.losingHorse) pSet.add(matchSel.losingHorse);
+
       }
     });
     targetPlayers = Array.from(pSet).filter(Boolean).sort();

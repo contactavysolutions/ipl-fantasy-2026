@@ -187,7 +187,7 @@ function LoginPage({onLogin}) {
 function isMatchLocked(match, now) {
   if (match.is_locked === true) return true;
   if (match.is_locked === false) return false;
-  return isMatchLocked(match, now);
+  return now >= new Date(match.lock_time);
 }
 
 function getStatus(match, now, results, userSel) {

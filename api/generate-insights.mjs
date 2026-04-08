@@ -33,9 +33,10 @@ export default async (req) => {
 
       const hasInsights = insightsMap[match.id];
 
-      // Generate initial insights: 23-25 hours before lock time
-      if (hoursUntilLock <= 25 && hoursUntilLock >= 23 && !hasInsights) {
-        matchesNeedingInsights.push({ match, reason: "initial (24h before)" });
+      // Generate initial insights: 23-48 hours before lock time
+      // The cron only runs daily. A match at 14:00 UTC tomorrow is 38h away at midnight today.
+      if (hoursUntilLock <= 48 && hoursUntilLock >= 23 && !hasInsights) {
+        matchesNeedingInsights.push({ match, reason: "initial (24-48h before)" });
         continue;
       }
 
@@ -47,16 +48,16 @@ export default async (req) => {
         }
       }
 
-      // Catch-all: if match is 0-25h away and still has NO insights, generate them
-      if (hoursUntilLock <= 25 && hoursUntilLock > 0 && !hasInsights) {
+      // Catch-all: if match is 0-48h away and still has NO insights, generate them
+      if (hoursUntilLock <= 48 && hoursUntilLock > 0 && !hasInsights) {
         matchesNeedingInsights.push({ match, reason: "catch-up (no insights yet)" });
       }
     }
 
     console.log(`Found ${matchesNeedingInsights.length} match(es) needing insights`);
 
-    // 3. Generate insights for each match (limit to 3 per run to avoid timeouts)
-    const toProcess = matchesNeedingInsights.slice(0, 3);
+    // 3. Generate insights for each match (limit to 1 per run to avoid Vercel 10s timeouts)
+    const toProcess = matchesNeedingInsights.slice(0, 1);
     const results = [];
 
     for (const { match, reason } of toProcess) {

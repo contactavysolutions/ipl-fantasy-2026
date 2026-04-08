@@ -45,8 +45,8 @@ export default async (req) => {
     console.log(`Processing ${upcomingToday.length} matches...`);
     const results = [];
 
-    // Process each match (limit to 3 per run due to Netlify timeout limits)
-    const toProcess = upcomingToday.slice(0, 3);
+    // Process each match (limit to 1 per run due to Vercel/Netlify timeout limits on Hobby plans)
+    const toProcess = upcomingToday.slice(0, 1);
 
     for (const match of toProcess) {
       console.log(`Manual generating for M${match.id}: ${match.home} vs ${match.away}`);

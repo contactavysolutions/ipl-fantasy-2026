@@ -34,7 +34,7 @@ async function seed() {
     CSK: ["Ruturaj Gaikwad","MS Dhoni","Sanju Samson","Dewald Brevis","Ayush Mhatre","Sarfaraz Khan","Shivam Dube"],
     DC:  ["Axar Patel","KL Rahul","Prithvi Shaw","Mitchell Starc","Kuldeep Yadav"],
     GT:  ["Shubman Gill","Jos Buttler","Rashid Khan","Mohammed Siraj"],
-    KKR: ["Ajinkya Rahane","Sunil Narine","Andre Russell","Shreyas Iyer"],
+    KKR: ["Ajinkya Rahane","Sunil Narine","Rinku Singh","Varun Chakravarthy"],
     LSG: ["Rishabh Pant","Nicholas Pooran","Avesh Khan","Mayank Yadav"],
     MI:  ["Hardik Pandya","Rohit Sharma","Suryakumar Yadav","Jasprit Bumrah"],
     PBKS:["Marcus Stoinis","Arshdeep Singh","Yuzvendra Chahal","Marco Jansen"],

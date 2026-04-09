@@ -82,12 +82,12 @@ function calcPoints(sel, res, pScores = {}) {
 
   const r = res || {};
 
-  bd.winningTeam = sel.winningTeam===r.winningTeam ? 50+Math.round((r.runMargin||0)/((r.wicketMargin||1)*5)) : 0;
-  bd.bestBatsman = getB(sel.bestBatsman) + (sel.bestBatsman===r.topScorer ? (r.topScorerRuns||0)+50 : 0);
-  bd.bestBowler = getBW(sel.bestBowler) + (sel.bestBowler===r.bestBowler ? (r.bestBowlerPoints||0)+50 : 0);
+  bd.winningTeam = sel.winningTeam===r.winningTeam ? 50 + (r.runMargin ? Math.round(r.runMargin) : (r.wicketMargin||0)*5) : 0;
+  bd.bestBatsman = getB(sel.bestBatsman) + (sel.bestBatsman===r.topScorer ? 50 : 0);
+  bd.bestBowler = getBW(sel.bestBowler) + (sel.bestBowler===r.bestBowler ? 50 : 0);
   bd.powerplayWinner = sel.powerplayWinner===r.powerplayWinner ? (r.powerplayScore||0)+(r.powerplayDiff||0) : 0;
-  bd.dotBallBowler = getDB(sel.dotBallBowler) + (sel.dotBallBowler===r.dotBallLeader ? 50+(r.dotBalls||0)*5 : 0);
-  bd.totalWickets = sel.totalWickets===r.wicketsRange ? (r.totalWickets||0)*5 : 0;
+  bd.dotBallBowler = getDB(sel.dotBallBowler) + (sel.dotBallBowler===r.dotBallLeader ? 50 : 0);
+  bd.totalWickets = sel.totalWickets===r.wicketsRange ? 100 : 0;
   bd.duckBatsman = (r.duckBatsmen||[]).includes(sel.duckBatsman) ? 100 : 0;
   bd.winningHorse = sel.winningHorse&&r.matchTopPlayer&&sel.winningHorse===r.matchTopPlayer ? 100 : 0;
   bd.losingHorse = sel.losingHorse&&r.matchBottomPlayer&&sel.losingHorse===r.matchBottomPlayer ? 100 : 0;
@@ -1379,7 +1379,6 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
                 <div style={S.sectionTitle}>Bowling</div>
                 <div style={{...S.grid2,marginBottom:"14px"}}>
                   <IField label="Best Bowler" value={form.bestBowler} onChange={v=>setF("bestBowler",v)} opts={allPlayers}/>
-                  <IField label="Bowler Points" value={form.bestBowlerPoints} onChange={v=>setF("bestBowlerPoints",v)} type="number"/>
                   <IField label="Dot-Ball Leader" value={form.dotBallLeader} onChange={v=>setF("dotBallLeader",v)} opts={allPlayers}/>
                   <IField label="Dot Balls Bowled" value={form.dotBalls} onChange={v=>setF("dotBalls",v)} type="number"/>
                 </div>

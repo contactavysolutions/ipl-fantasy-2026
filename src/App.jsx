@@ -900,7 +900,7 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
         <label style={S.label}>Select Match</label>
         <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>{setSelectedMatchId(e.target.value);setEditingPlayer(null);setSavedMsg("");}}>
           <option value="">-- Select a locked match --</option>
-          {lockedMatches.map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
+          {lockedMatches.slice().reverse().map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
         </select>
       </div>
 
@@ -1160,7 +1160,7 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
         <label style={S.label}>Select Match</label>
         <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>{setSelectedMatchId(e.target.value);setSavedMsg("");}}>
           <option value="">-- Select a locked match --</option>
-          {lockedMatches.map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
+          {lockedMatches.slice().reverse().map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
         </select>
       </div>
       {savedMsg && <div style={{color:"#00c864",fontSize:"13px",marginBottom:"12px"}}>✓ {savedMsg}</div>}
@@ -1451,7 +1451,7 @@ function LiveGrid({matches, results, allSelections, playerScores}) {
         <label style={S.label}>Select Match to Track</label>
         <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>setSelectedMatchId(e.target.value)}>
           <option value="">-- Select a match --</option>
-          {lockedMatches.map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
+          {lockedMatches.slice().reverse().map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
         </select>
       </div>
 

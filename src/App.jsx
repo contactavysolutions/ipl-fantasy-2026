@@ -844,7 +844,7 @@ const SEL_FIELDS=[
   {key:"losingHorse",label:"💀 Horse",type:"fantasy"},
 ];
 
-function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=false}) {
+function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=false,isAdmin=false}) {
   const [now]=useState(new Date());
   const [selectedMatchId,setSelectedMatchId]=useState("");
   const [editingPlayer,setEditingPlayer]=useState(null);
@@ -931,7 +931,7 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
                       </td>
                       {SEL_FIELDS.map(f=>{
                         const matchLocked = isMatchLocked(m, now);
-                        const hideCell = readOnly && !matchLocked && f.key !== "winningTeam";
+                        const hideCell = !isAdmin && !matchLocked && f.key !== "winningTeam";
                         return (
                         <td key={f.key} style={{padding:"6px 8px",whiteSpace:"nowrap"}}>
                           {isEditing
@@ -1656,7 +1656,7 @@ export default function App() {
           ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave} insights={insights[selectedMatch.id]} playerScores={playerScores}/>
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
           :page==="leaderboard"?<LeaderboardPage user={user} matches={matches} results={results} allSelections={allSelections} userSel={userSel} playerScores={playerScores}/>
-          :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true}/></div>
+          :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true} isAdmin={user.isAdmin}/></div>
           :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :null

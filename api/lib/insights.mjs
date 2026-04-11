@@ -180,8 +180,8 @@ Do not include any other text or markdown formatting.`;
 
   // Step 3: Call Gemini WITHOUT search tool (no quota issues)
   const models = [
-    { id: "gemini-2.0-flash", version: "v1beta" },
-    { id: "gemini-1.5-flash", version: "v1" },
+    { id: "gemini-2.5-flash", version: "v1beta" },
+    { id: "gemini-2.0-flash-001", version: "v1beta" },
   ];
 
   let lastError = "";

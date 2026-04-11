@@ -929,17 +929,23 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
                       <td style={{padding:"8px 12px",color:hasSel?"#e8e0d0":"#555",fontWeight:"bold",fontSize:"12px",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>
                         {name}{hasSel&&<span style={{color:"#00c864",marginLeft:"4px",fontSize:"10px"}}>✓</span>}
                       </td>
-                      {SEL_FIELDS.map(f=>(
+                      {SEL_FIELDS.map(f=>{
+                        const matchLocked = isMatchLocked(m, now);
+                        const hideCell = readOnly && !matchLocked && f.key !== "winningTeam";
+                        return (
                         <td key={f.key} style={{padding:"6px 8px",whiteSpace:"nowrap"}}>
                           {isEditing
                             ?<select style={{...S.select,padding:"6px 8px",fontSize:"12px",minWidth:"90px"}} value={editForm[f.key]||""} onChange={e=>setEditForm(prev=>({...prev,[f.key]:e.target.value}))}>
                               <option value="">--</option>
                               {getOpts(f).map(o=><option key={o} value={o}>{o}</option>)}
                             </select>
-                            :<span style={{color:sel?.[f.key]?"#e8e0d0":"#444",fontSize:"12px"}}>{sel?.[f.key]||"—"}</span>
+                            :hideCell
+                              ?<span style={{color:"#444",fontSize:"11px"}}>🔒</span>
+                              :<span style={{color:sel?.[f.key]?"#e8e0d0":"#444",fontSize:"12px"}}>{sel?.[f.key]||"—"}</span>
                           }
                         </td>
-                      ))}
+                        );
+                      })}
                       {!readOnly && <td style={{padding:"6px 8px",textAlign:"center",whiteSpace:"nowrap"}}>
                         {isEditing
                           ?<>

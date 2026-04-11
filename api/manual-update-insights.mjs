@@ -29,8 +29,8 @@ export default async (req) => {
       const lockTime = new Date(match.lock_time);
       const hoursUntilLock = (lockTime - now) / (1000 * 60 * 60);
 
-      // Range: 0 to 24 hours from now
-      if (hoursUntilLock > 0 && hoursUntilLock <= 24) {
+      // Range: 0 to 48 hours from now
+      if (hoursUntilLock > 0 && hoursUntilLock <= 48) {
         upcomingToday.push(match);
       }
     }

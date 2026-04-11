@@ -1,5 +1,5 @@
-// netlify/functions/lib/insights.mjs
-// Shared logic for generating and storing AI match insights
+// api/lib/insights.mjs
+// Scrape real cricket data from the web, then use Gemini (without search) to structure it
 
 const SUPABASE_URL = "https://olewyqrxgwjjjspeonon.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sZXd5cXJ4Z3dqampzcGVvbm9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MzM3NjMsImV4cCI6MjA5MDMwOTc2M30.mbY5GR8eZu7BH1UD0Yq2B_l5dr4bPB-RkYXa-vgRwYI";
@@ -38,10 +38,99 @@ export async function supabaseUpsert(table, data) {
   return res.json();
 }
 
+// ─── STEP 1: Scrape real match context from the web ──────────────────────────
+
+function stripHtml(html) {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchGoogleNewsContext(homeTeam, awayTeam, homeFull, awayFull) {
+  const queries = [
+    `${homeFull} vs ${awayFull} IPL 2026 match preview probable XI`,
+    `${homeTeam} vs ${awayTeam} IPL 2026 pitch report`,
+  ];
+
+  let allSnippets = [];
+
+  for (const q of queries) {
+    try {
+      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-IN&gl=IN&ceid=IN:en`;
+      const res = await fetch(rssUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; IPLFantasyBot/1.0)" }
+      });
+      if (!res.ok) continue;
+      const xml = await res.text();
+
+      // Extract titles and descriptions from RSS XML
+      const titles = [...xml.matchAll(/<title><!\[CDATA\[(.*?)\]\]><\/title>/g)].map(m => m[1]);
+      const descs = [...xml.matchAll(/<description><!\[CDATA\[(.*?)\]\]><\/description>/g)].map(m => stripHtml(m[1]));
+
+      // Also try without CDATA
+      const titles2 = [...xml.matchAll(/<title>([^<]+)<\/title>/g)].map(m => m[1]).filter(t => t !== "Google News");
+      const descs2 = [...xml.matchAll(/<description>([^<]+)<\/description>/g)].map(m => m[1]);
+
+      allSnippets.push(...titles, ...titles2, ...descs, ...descs2);
+    } catch (e) {
+      console.log(`⚠️ Google News fetch failed for "${q}":`, e.message);
+    }
+  }
+
+  return allSnippets.filter(Boolean).slice(0, 30).join("\n");
+}
+
+async function fetchCricbuzzContext(homeTeam, awayTeam) {
+  try {
+    const searchUrl = `https://www.cricbuzz.com/cricket-match/live-scores`;
+    const res = await fetch(searchUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    const text = stripHtml(html);
+    // Extract any relevant snippets mentioning our teams
+    const sentences = text.split(/[.!?]/).filter(s =>
+      s.toLowerCase().includes(homeTeam.toLowerCase()) ||
+      s.toLowerCase().includes(awayTeam.toLowerCase())
+    );
+    return sentences.slice(0, 10).join(". ");
+  } catch (e) {
+    console.log("⚠️ Cricbuzz fetch failed:", e.message);
+    return "";
+  }
+}
+
+async function fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) {
+  console.log(`🔍 Scraping match context for ${homeTeam} vs ${awayTeam}...`);
+
+  // Try multiple sources in parallel
+  const [newsContext, cricbuzzContext] = await Promise.all([
+    fetchGoogleNewsContext(homeTeam, awayTeam, homeFull, awayFull),
+    fetchCricbuzzContext(homeFull, awayFull),
+  ]);
+
+  const combined = [newsContext, cricbuzzContext].filter(Boolean).join("\n\n");
+  const contextLength = combined.length;
+  console.log(`📰 Scraped ${contextLength} chars of match context`);
+
+  return combined || null;
+}
+
+// ─── STEP 2: Use Gemini (without search) to structure the data ───────────────
+
 export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
-  // Try to get key from environment
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  
+
   if (!GEMINI_API_KEY) {
     return { success: false, error: "GEMINI_API_KEY missing in environment" };
   }
@@ -49,13 +138,26 @@ export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
   const homeFull = TEAMS[homeTeam] || homeTeam;
   const awayFull = TEAMS[awayTeam] || awayTeam;
 
+  // Step 1: Scrape real data from the web
+  let scrapedContext = "";
+  try {
+    scrapedContext = await fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) || "";
+  } catch (e) {
+    console.log("⚠️ Scraping failed, proceeding with LLM knowledge only:", e.message);
+  }
+
+  // Step 2: Build a context-enriched prompt
+  const contextBlock = scrapedContext
+    ? `\n\nHere is recent news and data scraped from cricket websites about this match. Use this as your PRIMARY source of information:\n---\n${scrapedContext.substring(0, 4000)}\n---\n`
+    : "\n\n(Note: No recent articles were found. Use your training knowledge about IPL 2026 teams and recent form.)\n";
+
   const prompt = `You are an expert IPL cricket analyst providing match preview insights for fantasy cricket players.
 
 For the IPL 2026 match: ${homeFull} (${homeTeam}) vs ${awayFull} (${awayTeam}) scheduled on ${matchDate}:
-
-Search for the LATEST cricket news and provide:
-1. PROBABLE PLAYING XI for both teams (11 players each).
-2. IN-FORM BATSMEN and BOWLERS for both teams (with recent stats).
+${contextBlock}
+Based on the above context and your knowledge, provide:
+1. PROBABLE PLAYING XI for both teams (11 players each). Use actual squad members only.
+2. IN-FORM BATSMEN and BOWLERS for both teams (with recent stats if available).
 3. PITCH REPORT and Venue analysis.
 4. HEAD TO HEAD summary.
 5. KEY MATCHUPS to watch.
@@ -76,74 +178,55 @@ IMPORTANT: Return your response ONLY as a valid JSON object with exactly these k
 }
 Do not include any other text or markdown formatting.`;
 
-  // Attempt models with their preferred endpoints
+  // Step 3: Call Gemini WITHOUT search tool (no quota issues)
   const models = [
-    { id: "gemini-1.5-flash", version: "v1" },
     { id: "gemini-2.0-flash", version: "v1beta" },
-    { id: "gemini-3-flash-preview", version: "v1beta" }
+    { id: "gemini-1.5-flash", version: "v1" },
   ];
-  
-  let lastError = "";
-  
-  for (const model of models) {
-    console.log(`📡 Attempting generation with ${model.id} (${model.version})...`);
-    const url = `https://generativelanguage.googleapis.com/${model.version}/models/${model.id}:generateContent?key=${GEMINI_API_KEY}`;
-    
-    // We'll try with search first, but have a fallback if search quota is restricted
-    const tryRequest = async (useSearch) => {
-      const body = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7 }
-      };
-      if (useSearch) {
-        body.tools = [{ googleSearch: {} }];
-      }
 
+  let lastError = "";
+
+  for (const model of models) {
+    console.log(`📡 Generating with ${model.id} (no search tool)...`);
+    const url = `https://generativelanguage.googleapis.com/${model.version}/models/${model.id}:generateContent?key=${GEMINI_API_KEY}`;
+
+    try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7 }
+          // NO tools/googleSearch — we provide context ourselves
+        }),
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         const msg = errData?.error?.message || `HTTP ${res.status}`;
-        return { success: false, status: res.status, message: msg };
+        console.error(`⚠️ Gemini API error for ${model.id}: ${msg}`);
+        lastError = `${model.id}: ${msg}`;
+        if (res.status === 404 || res.status === 429 || res.status === 400 || res.status === 403) continue;
+        return { success: false, error: lastError };
       }
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      return { success: true, text };
-    };
 
-    try {
-      // Attempt 1: With Search
-      let result = await tryRequest(true);
-      
-      // If we got a quota/precondition/auth error, try WITHOUT search as a fallback
-      if (!result.success && (result.status === 429 || result.status === 400 || result.status === 401) && 
-         (result.message.toLowerCase().includes("quota") || result.message.toLowerCase().includes("key") || result.message.toLowerCase().includes("permission"))) {
-        console.log(`⚠️ Search/Auth issue for ${model.id}, trying without search...`);
-        result = await tryRequest(false);
+      if (!text) {
+        lastError = `${model.id}: Empty response from API`;
+        continue;
       }
 
-      if (!result.success) {
-        console.error(`⚠️ Gemini API error for ${model.id}: ${result.message}`);
-        lastError = `${model.id}: ${result.message}`;
-        // Continue to next model for retryable errors
-        if (result.status === 404 || result.status === 429 || result.status === 400 || result.status === 401 || result.status === 403) continue;
-        return { success: false, error: lastError };
-      }
-
-      // Robust JSON extraction from text
-      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+      // Extract JSON from response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         lastError = `${model.id}: Invalid JSON format in response`;
         continue;
       }
-      
+
       const insights = JSON.parse(jsonMatch[0]);
-      console.log(`✅ Success with ${model.id}`);
+      console.log(`✅ Success with ${model.id} (context: ${scrapedContext ? "scraped" : "LLM knowledge"})`);
       return { success: true, insights };
     } catch (err) {
       console.error(`⚠️ Error with ${model.id}:`, err.message);

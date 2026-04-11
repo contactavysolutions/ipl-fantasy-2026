@@ -852,7 +852,12 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
   const [saving,setSaving]=useState(false);
   const [savedMsg,setSavedMsg]=useState("");
 
-  const lockedMatches=matches.filter(m=>isMatchLocked(m, now));
+  const lockedMatches=matches.filter(m=>{
+    if(isMatchLocked(m, now)) return true;
+    // Also show matches within the next 48 hours for admin preview
+    const hoursUntilLock = (new Date(m.lock_time) - now) / (1000*60*60);
+    return hoursUntilLock > 0 && hoursUntilLock <= 48;
+  });
   const m=lockedMatches.find(x=>String(x.id)===String(selectedMatchId));
   const allPlayers=m?[...new Set([...(PLAYERS[m.home]||[]),...(PLAYERS[m.away]||[])])].sort():[];
 

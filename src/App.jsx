@@ -1153,15 +1153,6 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
     setTimeout(() => setSavedMsg(""), 3000);
   };
 
-  const InputField = ({player, field}) => (
-    <input 
-      style={{...S.input, padding:"4px 6px", fontSize:"12px", width:"100%", background:"rgba(0,0,0,0.2)"}} 
-      type="number"
-      value={scores[player]?.[field] ?? ""}
-      onChange={e => updateVal(player, field, e.target.value)}
-    />
-  );
-
   return (
     <div>
       <div style={S.sectionTitle}>Add Player Scores</div>
@@ -1199,12 +1190,16 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
                   return (
                     <tr key={p} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)"}}>
                       <td style={{padding:"6px 10px",color:"#e8e0d0",fontWeight:"bold",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>{p}</td>
-                      <td style={{padding:"6px 4px"}}><InputField player={p} field="runs"/></td>
-                      <td style={{padding:"6px 4px"}}><InputField player={p} field="fours"/></td>
-                      <td style={{padding:"6px 4px"}}><InputField player={p} field="sixes"/></td>
-                      <td style={{padding:"6px 4px"}}><InputField player={p} field="wickets"/></td>
-                      <td style={{padding:"6px 4px"}}><InputField player={p} field="maidens"/></td>
-                      <td style={{padding:"6px 4px"}}><InputField player={p} field="dot_balls"/></td>
+                      {["runs","fours","sixes","wickets","maidens","dot_balls"].map(field=>(
+                        <td key={field} style={{padding:"6px 4px"}}>
+                          <input
+                            style={{...S.input, padding:"4px 6px", fontSize:"12px", width:"100%", background:"rgba(0,0,0,0.2)"}}
+                            type="number"
+                            value={scores[p]?.[field] ?? ""}
+                            onChange={e => updateVal(p, field, e.target.value)}
+                          />
+                        </td>
+                      ))}
                       <td style={{padding:"6px 4px",textAlign:"center",color:"#FFD700",fontWeight:"bold"}}>{calc.batsman_score}</td>
                       <td style={{padding:"6px 4px",textAlign:"center",color:"#60a5fa",fontWeight:"bold"}}>{calc.bowler_score}</td>
                       <td style={{padding:"6px 4px",textAlign:"center",color:"#4ade80",fontWeight:"bold"}}>{calc.dot_ball_score}</td>

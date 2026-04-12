@@ -1121,8 +1121,12 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
     if (runs >= 100) runsBonus = 25;
     else if (runs >= 50) runsBonus = 15;
 
+    let wicketsBonus = 0;
+    if (wickets >= 4) wicketsBonus = 25;
+    else if (wickets >= 2) wicketsBonus = 15;
+
     const batsman_score = runs + runsBonus + (fours * 2) + (sixes * 3);
-    const bowler_score = (wickets * 25) + (maidens * 25);
+    const bowler_score = (wickets * 25) + (maidens * 25) + wicketsBonus;
     const dot_ball_score = dot_balls * 5;
 
     return { batsman_score, bowler_score, dot_ball_score };
@@ -1176,7 +1180,7 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
                   <th style={{padding:"8px 4px",textAlign:"center",color:"#FFD700",fontWeight:"normal",fontSize:"10px"}}>Runs (&gt;50 +15, &gt;100 +25)</th>
                   <th style={{padding:"8px 4px",textAlign:"center",color:"#FFD700",fontWeight:"normal",fontSize:"10px"}}>Fours (2)</th>
                   <th style={{padding:"8px 4px",textAlign:"center",color:"#FFD700",fontWeight:"normal",fontSize:"10px"}}>Sixes (3)</th>
-                  <th style={{padding:"8px 4px",textAlign:"center",color:"#60a5fa",fontWeight:"normal",fontSize:"10px"}}>Wickets (25)</th>
+                  <th style={{padding:"8px 4px",textAlign:"center",color:"#60a5fa",fontWeight:"normal",fontSize:"10px"}}>Wickets (25, 2-3W +15, 4W+ +25)</th>
                   <th style={{padding:"8px 4px",textAlign:"center",color:"#60a5fa",fontWeight:"normal",fontSize:"10px"}}>Maidens (25)</th>
                   <th style={{padding:"8px 4px",textAlign:"center",color:"#4ade80",fontWeight:"normal",fontSize:"10px"}}>Dot Balls (5)</th>
                   <th style={{padding:"8px 4px",textAlign:"center",color:"#f8fafc",fontWeight:"bold",fontSize:"11px"}}>Batsman Total</th>

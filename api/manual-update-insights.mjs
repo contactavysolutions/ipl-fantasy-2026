@@ -45,26 +45,19 @@ export default async (req) => {
     console.log(`Processing ${upcomingToday.length} matches...`);
     const results = [];
 
-    // Process each match (limit to 1 per run due to Vercel/Netlify timeout limits on Hobby plans)
-    const toProcess = upcomingToday.slice(0, 1);
+    // Process matches concurrently (up to 4 matches logic)
+    const toProcess = upcomingToday.slice(0, 4);
 
-    for (const match of toProcess) {
+    await Promise.all(toProcess.map(async (match) => {
       console.log(`Manual generating for M${match.id}: ${match.home} vs ${match.away}`);
       
       try {
         const result = await generateInsights(match.home, match.away, match.date, match.id);
-        
-        if (!result.success) {
-          results.push({ 
-            matchId: match.id, 
-            teams: `${match.home} vs ${match.away}`, 
-            success: false, 
-            error: result.error || "AI generation failed" 
-          });
-          continue;
-        }
+        const insights = result.insights || {}; 
 
-        const insights = result.insights;
+        if (!result.success) {
+          console.log(`Fallback triggered manually for M${match.id}: ${result.error}`);
+        }
 
         await supabaseUpsert("match_insights", {
           match_id: match.id,
@@ -81,11 +74,11 @@ export default async (req) => {
           generated_at: new Date().toISOString(),
         });
 
-        results.push({ matchId: match.id, teams: `${match.home} vs ${match.away}`, success: true });
+        results.push({ matchId: match.id, teams: `${match.home} vs ${match.away}`, success: result.success });
       } catch (e) {
         results.push({ matchId: match.id, teams: `${match.home} vs ${match.away}`, success: false, error: e.message });
       }
-    }
+    }));
 
     return new Response(JSON.stringify({ 
       processed: results.length, 

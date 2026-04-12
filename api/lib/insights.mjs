@@ -129,10 +129,11 @@ async function fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) {
 // ─── STEP 2: Use Gemini (without search) to structure the data ───────────────
 
 export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const keysInput = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
+  const apiKeys = keysInput.split(',').map(k => k.trim()).filter(Boolean);
 
-  if (!GEMINI_API_KEY) {
-    return { success: false, error: "GEMINI_API_KEY missing in environment" };
+  if (!apiKeys.length) {
+    return { success: false, error: "GEMINI_API_KEYS missing in environment" };
   }
 
   const homeFull = TEAMS[homeTeam] || homeTeam;
@@ -186,54 +187,71 @@ Do not include any other text or markdown formatting.`;
 
   let lastError = "";
 
-  for (const model of models) {
-    console.log(`📡 Generating with ${model.id} (no search tool)...`);
-    const url = `https://generativelanguage.googleapis.com/${model.version}/models/${model.id}:generateContent?key=${GEMINI_API_KEY}`;
+  for (const GEMINI_API_KEY of apiKeys) {
+    for (const model of models) {
+      console.log(`📡 Generating with ${model.id} using sharded key...`);
+      const url = `https://generativelanguage.googleapis.com/${model.version}/models/${model.id}:generateContent?key=${GEMINI_API_KEY}`;
 
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7 }
-          // NO tools/googleSearch — we provide context ourselves
-        }),
-      });
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.7 }
+            // NO tools/googleSearch — we provide context ourselves
+          }),
+        });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        const msg = errData?.error?.message || `HTTP ${res.status}`;
-        console.error(`⚠️ Gemini API error for ${model.id}: ${msg}`);
-        lastError = `${model.id}: ${msg}`;
-        if (res.status === 404 || res.status === 429 || res.status === 400 || res.status === 403) continue;
-        return { success: false, error: lastError };
-      }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const msg = errData?.error?.message || `HTTP ${res.status}`;
+          console.error(`⚠️ Gemini API error for ${model.id}: ${msg}`);
+          lastError = `${model.id}: ${msg}`;
+          continue; // Always continue to the next model/key combo instead of abandoning
+        }
 
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!text) {
-        lastError = `${model.id}: Empty response from API`;
+        if (!text) {
+          lastError = `${model.id}: Empty response from API`;
+          continue;
+        }
+
+        // Extract JSON from response
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          lastError = `${model.id}: Invalid JSON format in response`;
+          continue;
+        }
+
+        const insights = JSON.parse(jsonMatch[0]);
+        console.log(`✅ Success with ${model.id}`);
+        return { success: true, insights };
+      } catch (err) {
+        console.error(`⚠️ Error with ${model.id}:`, err.message);
+        lastError = `${model.id}: ${err.message}`;
         continue;
       }
-
-      // Extract JSON from response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        lastError = `${model.id}: Invalid JSON format in response`;
-        continue;
-      }
-
-      const insights = JSON.parse(jsonMatch[0]);
-      console.log(`✅ Success with ${model.id} (context: ${scrapedContext ? "scraped" : "LLM knowledge"})`);
-      return { success: true, insights };
-    } catch (err) {
-      console.error(`⚠️ Error with ${model.id}:`, err.message);
-      lastError = `${model.id}: ${err.message}`;
-      continue;
     }
   }
 
-  return { success: false, error: lastError || "All models failed" };
+  console.log(`❌ All keys and models failed. Supplying fallback insight structure.`);
+  return { 
+    success: false, 
+    error: lastError || "All keys and models failed", 
+    insights: {
+      home_probable_xi: ["TBA"],
+      away_probable_xi: ["TBA"],
+      home_form_batsmen: "Pending",
+      away_form_batsmen: "Pending",
+      home_form_bowlers: "Pending",
+      away_form_bowlers: "Pending",
+      pitch_report: "Historical data analysis pending. AI API quota limit reached. Check back later.",
+      head_to_head: "Data not pulled.",
+      key_matchups: "AI Service momentarily offline.",
+      prediction_summary: "Fallback invoked: All API keys exhausted."
+    }
+  };
 }

@@ -33,41 +33,27 @@ export default async (req) => {
 
       const hasInsights = insightsMap[match.id];
 
-      // Generate initial insights: 23-48 hours before lock time
-      // The cron only runs daily. A match at 14:00 UTC tomorrow is 38h away at midnight today.
-      if (hoursUntilLock <= 48 && hoursUntilLock >= 23 && !hasInsights) {
-        matchesNeedingInsights.push({ match, reason: "initial (24-48h before)" });
+      // For Vercel Cron (Daily at 00:00 UTC): Collect any matches up to 72 hours out that don't have insights yet.
+      if (hoursUntilLock <= 72 && hoursUntilLock > 0 && !hasInsights) {
+        matchesNeedingInsights.push({ match, reason: "initial (0-72h before)" });
         continue;
-      }
-
-      // Refresh insights: 5-7 hours before lock time, if insights are older than 18h
-      if (hoursUntilLock <= 7 && hoursUntilLock >= 5 && hasInsights) {
-        const insightAge = (now - new Date(hasInsights)) / (1000 * 60 * 60);
-        if (insightAge >= 18) {
-          matchesNeedingInsights.push({ match, reason: "refresh (6h before)" });
-        }
-      }
-
-      // Catch-all: if match is 0-48h away and still has NO insights, generate them
-      if (hoursUntilLock <= 48 && hoursUntilLock > 0 && !hasInsights) {
-        matchesNeedingInsights.push({ match, reason: "catch-up (no insights yet)" });
       }
     }
 
     console.log(`Found ${matchesNeedingInsights.length} match(es) needing insights`);
 
-    // 3. Generate insights for each match (limit to 1 per run to avoid Vercel 10s timeouts)
-    const toProcess = matchesNeedingInsights.slice(0, 1);
+    // 3. Generate insights concurrently for up to 4 matches
+    const toProcess = matchesNeedingInsights.slice(0, 4);
     const results = [];
 
-    for (const { match, reason } of toProcess) {
+    await Promise.all(toProcess.map(async ({ match, reason }) => {
       console.log(`Generating insights for M${match.id}: ${match.home} vs ${match.away} (${reason})`);
 
-      const insights = await generateInsights(match.home, match.away, match.date, match.id);
-      if (!insights) {
-        console.error(`Failed to generate insights for M${match.id}`);
-        results.push({ matchId: match.id, success: false });
-        continue;
+      const resObj = await generateInsights(match.home, match.away, match.date, match.id);
+      const insights = resObj.insights || {}; 
+
+      if (!resObj.success) {
+        console.error(`Fallback insights supplied for M${match.id}`);
       }
 
       // 4. Upsert into Supabase
@@ -87,8 +73,8 @@ export default async (req) => {
       });
 
       console.log(`✅ Saved insights for M${match.id}`);
-      results.push({ matchId: match.id, success: true });
-    }
+      results.push({ matchId: match.id, success: resObj.success });
+    }));
 
     return new Response(JSON.stringify({ processed: toProcess.length, results }), {
       status: 200,

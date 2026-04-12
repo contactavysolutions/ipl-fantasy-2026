@@ -83,10 +83,10 @@ function calcPoints(sel, res, pScores = {}) {
   const r = res || {};
 
   bd.winningTeam = sel.winningTeam===r.winningTeam ? 50 + (r.runMargin ? Math.round(r.runMargin) : (r.wicketMargin||0)*5) : 0;
-  bd.bestBatsman = getB(sel.bestBatsman) + (sel.bestBatsman===r.topScorer ? 50 : 0);
-  bd.bestBowler = getBW(sel.bestBowler) + (sel.bestBowler===r.bestBowler ? 50 : 0);
+  bd.bestBatsman = getB(sel.bestBatsman) + ((r.topScorers||[]).includes(sel.bestBatsman) ? 50 : 0);
+  bd.bestBowler = getBW(sel.bestBowler) + ((r.bestBowlers||[]).includes(sel.bestBowler) ? 50 : 0);
   bd.powerplayWinner = sel.powerplayWinner===r.powerplayWinner ? (r.powerplayScore||0)+(r.powerplayDiff||0) : 0;
-  bd.dotBallBowler = getDB(sel.dotBallBowler) + (sel.dotBallBowler===r.dotBallLeader ? 50 : 0);
+  bd.dotBallBowler = getDB(sel.dotBallBowler) + ((r.dotBallLeaders||[]).includes(sel.dotBallBowler) ? 50 : 0);
   bd.totalWickets = sel.totalWickets===r.wicketsRange ? 100 : 0;
   bd.duckBatsman = (r.duckBatsmen||[]).includes(sel.duckBatsman) ? 100 : 0;
   bd.winningHorse = sel.winningHorse&&r.matchTopPlayer&&sel.winningHorse===r.matchTopPlayer ? 100 : 0;
@@ -1267,9 +1267,12 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
   const [adminTab,setAdminTab]=useState("results");
   const [selectedMatch,setSelectedMatch]=useState(null);
   const [now]=useState(new Date());
-  const EMPTY_FORM={winningTeam:"",winByRuns:true,runMargin:"",wicketMargin:"",topScorer:"",topScorerRuns:"",bestBowler:"",bestBowlerPoints:"",powerplayWinner:"",powerplayScore:"",powerplayDiff:"",dotBallLeader:"",dotBalls:"",totalWickets:"",wicketsRange:"",duckBatsmen:[],matchTopPlayer:"",matchBottomPlayer:""};
+  const EMPTY_FORM={winningTeam:"",winByRuns:true,runMargin:"",wicketMargin:"",topScorers:[],topScorerRuns:"",bestBowlers:[],bestBowlerPoints:"",powerplayWinner:"",powerplayScore:"",powerplayDiff:"",dotBallLeaders:[],dotBalls:"",totalWickets:"",wicketsRange:"",duckBatsmen:[],matchTopPlayer:"",matchBottomPlayer:""};
   const [form,setForm]=useState(EMPTY_FORM);
   const [duckBatamenSelected,setDuckBatmenSelected]=useState("");
+  const [topScorerSelected,setTopScorerSelected]=useState("");
+  const [bestBowlerSelected,setBestBowlerSelected]=useState("");
+  const [dotBallLeaderSelected,setDotBallLeaderSelected]=useState("");
   const [saved,setSaved]=useState(false);
   const [saving,setSaving]=useState(false);
 
@@ -1279,11 +1282,14 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
     const ex=results[m.id];
     if(ex){
       const numFields=["runMargin","wicketMargin","topScorerRuns","bestBowlerPoints","powerplayScore","powerplayDiff","dotBalls","totalWickets"];
-      const converted={...EMPTY_FORM,...ex,duckBatsmen:ex.duckBatsmen||[]};
+      const converted={...EMPTY_FORM,...ex,duckBatsmen:ex.duckBatsmen||[],topScorers:ex.topScorers||[],bestBowlers:ex.bestBowlers||[],dotBallLeaders:ex.dotBallLeaders||[]};
       numFields.forEach(f=>{if(converted[f]!=null)converted[f]=String(converted[f]);});
       setForm(converted);
     }else{setForm(EMPTY_FORM);}
     setDuckBatmenSelected("");
+    setTopScorerSelected("");
+    setBestBowlerSelected("");
+    setDotBallLeaderSelected("");
     setSaved(false);
   };
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -1364,8 +1370,29 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
 
                 <div style={S.sectionTitle}>Batting</div>
                 <div style={{...S.grid2,marginBottom:"14px"}}>
-                  <IField label="Top Scorer" value={form.topScorer} onChange={v=>setF("topScorer",v)} opts={allPlayers}/>
-                  <IField label="Runs Scored" value={form.topScorerRuns} onChange={v=>setF("topScorerRuns",v)} type="number"/>
+                  <div style={{gridColumn:"1/-1", display:"flex", gap:"16px", flexWrap:"wrap"}}>
+                    <div style={{flex:1, minWidth:"200px"}}>
+                      <label style={S.label}>Top Scorers</label>
+                      <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+                        <select style={{...S.select,flex:1}} value={topScorerSelected} onChange={e=>setTopScorerSelected(e.target.value)}>
+                          <option value="">-- Select Player --</option>
+                          {allPlayers.filter(p=>!form.topScorers.includes(p)).map(p=><option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <button style={{...S.btn("primary"),padding:"10px 16px"}} onClick={()=>{if(topScorerSelected){setF("topScorers",[...form.topScorers,topScorerSelected]);setTopScorerSelected("");}}}>+ Add</button>
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+                        {form.topScorers.map(b=>(
+                          <span key={b} style={{background:"rgba(255,165,0,0.2)",border:"1px solid rgba(255,165,0,0.4)",borderRadius:"6px",padding:"6px 12px",fontSize:"13px",display:"flex",alignItems:"center",gap:"8px"}}>
+                            {b}
+                            <button onClick={()=>setF("topScorers",form.topScorers.filter(x=>x!==b))} style={{background:"transparent",border:"none",cursor:"pointer",color:"#ff6b6b",fontSize:"16px",padding:"0",lineHeight:"1"}}>✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{flex:1, minWidth:"200px"}}>
+                      <IField label="Runs Scored" value={form.topScorerRuns} onChange={v=>setF("topScorerRuns",v)} type="number"/>
+                    </div>
+                  </div>
                   <div style={{gridColumn:"1/-1"}}>
                     <label style={S.label}>Duck Batsmen</label>
                     <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
@@ -1388,8 +1415,44 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
 
                 <div style={S.sectionTitle}>Bowling</div>
                 <div style={{...S.grid2,marginBottom:"14px"}}>
-                  <IField label="Best Bowler" value={form.bestBowler} onChange={v=>setF("bestBowler",v)} opts={allPlayers}/>
-                  <IField label="Dot-Ball Leader" value={form.dotBallLeader} onChange={v=>setF("dotBallLeader",v)} opts={allPlayers}/>
+                  <div style={{gridColumn:"1/-1", display:"flex", gap:"16px", flexWrap:"wrap"}}>
+                    <div style={{flex:1, minWidth:"200px"}}>
+                      <label style={S.label}>Best Bowlers</label>
+                      <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+                        <select style={{...S.select,flex:1}} value={bestBowlerSelected} onChange={e=>setBestBowlerSelected(e.target.value)}>
+                          <option value="">-- Select Player --</option>
+                          {allPlayers.filter(p=>!form.bestBowlers.includes(p)).map(p=><option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <button style={{...S.btn("primary"),padding:"10px 16px"}} onClick={()=>{if(bestBowlerSelected){setF("bestBowlers",[...form.bestBowlers,bestBowlerSelected]);setBestBowlerSelected("");}}}>+ Add</button>
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+                        {form.bestBowlers.map(b=>(
+                          <span key={b} style={{background:"rgba(255,165,0,0.2)",border:"1px solid rgba(255,165,0,0.4)",borderRadius:"6px",padding:"6px 12px",fontSize:"13px",display:"flex",alignItems:"center",gap:"8px"}}>
+                            {b}
+                            <button onClick={()=>setF("bestBowlers",form.bestBowlers.filter(x=>x!==b))} style={{background:"transparent",border:"none",cursor:"pointer",color:"#ff6b6b",fontSize:"16px",padding:"0",lineHeight:"1"}}>✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{flex:1, minWidth:"200px"}}>
+                      <label style={S.label}>Dot-Ball Leaders</label>
+                      <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+                        <select style={{...S.select,flex:1}} value={dotBallLeaderSelected} onChange={e=>setDotBallLeaderSelected(e.target.value)}>
+                          <option value="">-- Select Player --</option>
+                          {allPlayers.filter(p=>!form.dotBallLeaders.includes(p)).map(p=><option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <button style={{...S.btn("primary"),padding:"10px 16px"}} onClick={()=>{if(dotBallLeaderSelected){setF("dotBallLeaders",[...form.dotBallLeaders,dotBallLeaderSelected]);setDotBallLeaderSelected("");}}}>+ Add</button>
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+                        {form.dotBallLeaders.map(b=>(
+                          <span key={b} style={{background:"rgba(255,165,0,0.2)",border:"1px solid rgba(255,165,0,0.4)",borderRadius:"6px",padding:"6px 12px",fontSize:"13px",display:"flex",alignItems:"center",gap:"8px"}}>
+                            {b}
+                            <button onClick={()=>setF("dotBallLeaders",form.dotBallLeaders.filter(x=>x!==b))} style={{background:"transparent",border:"none",cursor:"pointer",color:"#ff6b6b",fontSize:"16px",padding:"0",lineHeight:"1"}}>✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                   <IField label="Dot Balls Bowled" value={form.dotBalls} onChange={v=>setF("dotBalls",v)} type="number"/>
                 </div>
 
@@ -1536,7 +1599,8 @@ export default function App() {
     ]).then(([matchData,resultData,selData,insightsData,playerScoresData])=>{
       setMatches(matchData||[]);
       const resMap={};
-      (resultData||[]).forEach(r=>{resMap[r.match_id]={winningTeam:r.winning_team,runMargin:r.run_margin,wicketMargin:r.wicket_margin,topScorer:r.top_scorer,topScorerRuns:r.top_scorer_runs,bestBowler:r.best_bowler,bestBowlerPoints:r.best_bowler_points,powerplayWinner:r.powerplay_winner,powerplayScore:r.powerplay_score,powerplayDiff:r.powerplay_diff,dotBallLeader:r.dot_ball_leader,dotBalls:r.dot_balls,totalWickets:r.total_wickets,wicketsRange:r.wickets_range,duckBatsmen:r.duck_batsmen||[],matchTopPlayer:r.match_top_player,matchBottomPlayer:r.match_bottom_player};});
+      const parseMulti = (val) => val ? String(val).split(',').map(s=>s.trim()) : [];
+      (resultData||[]).forEach(r=>{resMap[r.match_id]={winningTeam:r.winning_team,runMargin:r.run_margin,wicketMargin:r.wicket_margin,topScorers:parseMulti(r.top_scorer),topScorerRuns:r.top_scorer_runs,bestBowlers:parseMulti(r.best_bowler),bestBowlerPoints:r.best_bowler_points,powerplayWinner:r.powerplay_winner,powerplayScore:r.powerplay_score,powerplayDiff:r.powerplay_diff,dotBallLeaders:parseMulti(r.dot_ball_leader),dotBalls:r.dot_balls,totalWickets:r.total_wickets,wicketsRange:r.wickets_range,duckBatsmen:r.duck_batsmen||[],matchTopPlayer:r.match_top_player,matchBottomPlayer:r.match_bottom_player};});
       setResults(resMap);
       const selMap={};
       (selData||[]).forEach(s=>{
@@ -1566,7 +1630,7 @@ export default function App() {
   },[user]);
 
   const onSaveResult=useCallback(async(matchId,res)=>{
-    await supa.upsert("results",{match_id:matchId,winning_team:res.winningTeam,win_by_runs:res.winByRuns,run_margin:res.runMargin,wicket_margin:res.wicketMargin,top_scorer:res.topScorer,top_scorer_runs:res.topScorerRuns,best_bowler:res.bestBowler,best_bowler_points:res.bestBowlerPoints,powerplay_winner:res.powerplayWinner,powerplay_score:res.powerplayScore,powerplay_diff:res.powerplayDiff,dot_ball_leader:res.dotBallLeader,dot_balls:res.dotBalls,total_wickets:res.totalWickets,wickets_range:res.wicketsRange,duck_batsmen:res.duckBatsmen,match_top_player:res.matchTopPlayer,match_bottom_player:res.matchBottomPlayer},"match_id");
+    await supa.upsert("results",{match_id:matchId,winning_team:res.winningTeam,win_by_runs:res.winByRuns,run_margin:res.runMargin,wicket_margin:res.wicketMargin,top_scorer:(res.topScorers||[]).join(','),top_scorer_runs:res.topScorerRuns,best_bowler:(res.bestBowlers||[]).join(','),best_bowler_points:res.bestBowlerPoints,powerplay_winner:res.powerplayWinner,powerplay_score:res.powerplayScore,powerplay_diff:res.powerplayDiff,dot_ball_leader:(res.dotBallLeaders||[]).join(','),dot_balls:res.dotBalls,total_wickets:res.totalWickets,wickets_range:res.wicketsRange,duck_batsmen:res.duckBatsmen,match_top_player:res.matchTopPlayer,match_bottom_player:res.matchBottomPlayer},"match_id");
     setResults(prev=>({...prev,[matchId]:res}));
   },[]);
 

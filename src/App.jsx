@@ -1587,10 +1587,9 @@ export default function App() {
 
   const userSel=user?(allSelections[user.username]||{}):{};
 
-  // Load all data on mount
-  useEffect(()=>{
-    if(!user){setLoading(false);return;}
-    Promise.all([
+  const loadData = useCallback(() => {
+    if(!user) return Promise.resolve();
+    return Promise.all([
       supa.query("matches",{select:"*",order:"id.asc"}),
       supa.query("results",{select:"*"}),
       supa.query("selections",{select:"*"}),
@@ -1617,9 +1616,28 @@ export default function App() {
         scoreMap[s.match_id][s.player_name]=s;
       });
       setPlayerScores(scoreMap);
-      setLoading(false);
-    }).catch(()=>setLoading(false));
+    }).catch(console.error);
   },[user]);
+
+  // Load all data on mount
+  useEffect(()=>{
+    if(!user){setLoading(false);return;}
+    setLoading(true);
+    loadData().finally(() => setLoading(false));
+  },[user, loadData]);
+
+  // Silent refresh on tab navigation
+  useEffect(()=>{
+    if(user && page) loadData();
+  },[page, user, loadData]);
+
+  // Silent refresh on window focus
+  useEffect(()=>{
+    if(!user) return;
+    const onFocus = () => loadData();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  },[user, loadData]);
 
   const login=(u)=>{sessionStorage.setItem("ipl_user",JSON.stringify(u));setUser(u);};
   const logout=()=>{sessionStorage.removeItem("ipl_user");setUser(null);setPage("matches");setSelectedMatch(null);setMenuOpen(false);};

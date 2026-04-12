@@ -19,7 +19,7 @@
 ### Codebase Structure
 ```
 src/
-├── App.jsx          # Single-file monolithic component (~750 lines)
+├── App.jsx          # Single-file monolithic component (~1680 lines)
 │   ├── Supabase config & REST client
 │   ├── Static data (teams, players, wicket ranges, fantasy league users)
 │   ├── Scoring engine (points calculation logic)
@@ -122,14 +122,14 @@ const adminFormFields = {
   winByRuns: true,          // Win type: true=by runs, false=by wickets
   runMargin: "",            // Runs by which team won (number input)
   wicketMargin: "",         // Wickets by which team won (number input)
-  topScorer: "",            // Best batsman name (dropdown)
+  topScorers: [],           // Best batsmen in match (multi-select array)
   topScorerRuns: "",        // Runs scored by top batsman (number input)
-  bestBowler: "",           // Best bowler name (dropdown)
+  bestBowlers: [],          // Best bowlers in match (multi-select array)
   bestBowlerPoints: "",     // Bowling performance score (number input)
   powerplayWinner: "",      // Team winning powerplay (dropdown)
   powerplayScore: "",       // Powerplay runs (number input)
   powerplayDiff: "",        // Powerplay run difference (number input)
-  dotBallLeader: "",        // Bowler with most dot balls (dropdown)
+  dotBallLeaders: [],       // Bowlers with most dot balls (multi-select array)
   dotBalls: "",             // Total dot balls bowled (number input)
   totalWickets: "",         // Total wickets fallen (number input)
   wicketsRange: "",         // Wicket range bracket (dropdown)
@@ -145,14 +145,15 @@ const adminFormFields = {
 - **Validation**: Converted to integers via `parseInt()` before submission
 - **State Management**: Each number field updates independently (no shared state)
 
-#### Duck Batsmen Multi-Select
-- **UI**: Dropdown selector + "Add" button + Removable badges
-- **State**: Array of selected player names
+#### Array Multi-Select Support (Ties & Ducks)
+To gracefully handle ties and ducks, the fields for **Top Scorers, Best Bowlers, Dot-Ball Leaders**, and **Duck Batsmen** behave as array sets natively inline:
+- **UI**: Dropdown selector + "Add" button + Removable tag chips
+- **State**: Array of selected player names kept natively in component.
 - **Flow**:
   1. Select player from dropdown
-  2. Click "Add" button to add to list
-  3. Click badge "✕" to remove from list
-  4. Saved as array in database
+  2. Click "Add" button to push player to the list
+  3. Click badge "✕" to permanently remove player from array
+  4. Saved as a comma-separated string `TEXT` on the backend server for simplicity.
 
 #### Tabs in Admin Panel
 1. **Match Results Tab**: Enter match outcomes for locked/completed matches
@@ -170,7 +171,7 @@ The `calcPoints()` function calculates fantasy points for each user's selection 
 |----------|------------|------------------|
 | **Winning Team** | 50 | + Run Margin / (Wicket Margin × 5) |
 | **Best Batsman** | 50 | + Runs scored by player |
-| **Best Bowler** | 50 | + Bowling performance score |
+| **Best Bowler** | 50 | + Bowling score (25/wicket, 25/maiden, 2-3W: +15, 4W+: +25) |
 | **Powerplay Winner** | Varies | + Powerplay score + Run difference |
 | **Dot-Ball Leader** | 50 | + (Dot balls × 5) |
 | **Total Wickets** | (Wickets × 5) | Must match wicket range bracket |
@@ -581,7 +582,7 @@ Venky, Naresh, Srikanth B, Prashanth, Sreeram, Santhosh Male
 
 ### Important Implementation Details
 1. **No Redux/Context**: All state managed via React hooks at component level
-2. **Single File**: Entire app in one `App.jsx` (~750 lines) - consider splitting for maintainability
+2. **Single File**: Entire app in one `App.jsx` (~1680 lines) - consider splitting for maintainability
 3. **Direct Supabase REST API**: No SDK, custom fetch wrapper used
 4. **Inline Styles**: All CSS inline, consider migrating to CSS modules
 5. **Data Normalization**: Fantasy league users hardcoded in array, consider database storage
@@ -605,6 +606,7 @@ Venky, Naresh, Srikanth B, Prashanth, Sreeram, Santhosh Male
 ---
 
 ## 📌 Version History
+- **v1.1.0** (April 12, 2026): Handled array structures for tracking multiple tied players natively for Top Scorer, Best Bowler, and Dot Ball metrics. Inserted Wicket Bonus milestones.
 - **v1.0.1** (April 03, 2026): Migrated backend architecture from Netlify Edge to Vercel Serverless Functions (`api/`) & implemented `vercel.json`.
 - **v1.0.0** (March 30, 2026): Initial release with all core features
 
@@ -619,5 +621,5 @@ For questions or issues, refer to:
 
 ---
 
-**Last Updated**: April 03, 2026  
+**Last Updated**: April 12, 2026  
 **Status**: ✅ Production Ready

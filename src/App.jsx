@@ -1619,6 +1619,49 @@ export default function App() {
     }).catch(console.error);
   },[user]);
 
+  const [pushStatus, setPushStatus] = useState("unknown");
+  useEffect(() => {
+    if ("Notification" in window) {
+      setPushStatus(Notification.permission);
+    } else {
+      setPushStatus("unsupported");
+    }
+  }, []);
+
+  const enablePushNotifications = useCallback(async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert("Push notifications are not supported in this browser.");
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      setPushStatus(permission);
+      if (permission !== 'granted') return;
+
+      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      await navigator.serviceWorker.ready;
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: "BB9RL0jOEAwqA9FiXUTJMU3ar0ea47C49S0yidy9JU0wxz9YlJlRf2X_qRw2EK0jeP9NmEz66AvyOftc-q0mdiQ"
+      });
+
+      const subData = JSON.parse(JSON.stringify(subscription));
+      
+      await supa.upsert("push_subscriptions", {
+        username: user.username,
+        endpoint: subData.endpoint,
+        keys_p256dh: subData.keys.p256dh,
+        keys_auth: subData.keys.auth
+      }, "username");
+
+      alert("Push Notifications securely enabled! You will now receive match reminders.");
+    } catch (err) {
+      console.error("Push Error", err);
+      alert("Failed to enable push notifications.");
+    }
+  }, [user]);
+
   // Load all data on mount
   useEffect(()=>{
     if(!user){setLoading(false);return;}
@@ -1726,6 +1769,11 @@ export default function App() {
           <div style={S.logo}>🏏 IPL FANTASY</div>
           <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
             <span style={{fontSize:"12px",color:"#64748b",fontWeight:500}}>{user.displayName}</span>
+            {pushStatus !== "granted" && pushStatus !== "unsupported" && (
+              <button onClick={enablePushNotifications} style={{background:"rgba(255,140,0,0.1)",border:"1px solid rgba(255,140,0,0.4)",borderRadius:"6px",padding:"4px 8px",cursor:"pointer",color:"#fbbf24",fontSize:"11px",fontWeight:600,transition:"all 0.2s"}}>
+                🔔 Alerts
+              </button>
+            )}
             <button onClick={logout} style={{background:"none",border:"1px solid rgba(239,68,68,0.25)",borderRadius:"6px",padding:"4px 10px",cursor:"pointer",color:"#f87171",fontSize:"11px",fontWeight:600,fontFamily:"'Inter',sans-serif",transition:"all 0.2s"}}>
               Logout
             </button>

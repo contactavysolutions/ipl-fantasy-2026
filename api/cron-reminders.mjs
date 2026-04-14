@@ -30,15 +30,23 @@ export default async function handler(req, res) {
      const matches = await matchesRes.json();
      
      const now = new Date();
-     const next3Hours = new Date(now.getTime() + 3 * 60 * 60 * 1000); // Look exactly 3 hours ahead
      
      const upcomingMatches = matches.filter(m => {
        const matchTime = new Date(m.date);
-       return matchTime > now && matchTime <= next3Hours;
+       const diffHours = (matchTime - now) / (1000 * 60 * 60);
+       
+       // Detect matches strictly inside the "3 Hour" window (between 2.0 to 3.0 hours away)
+       const is3HourWindow = diffHours > 2.0 && diffHours <= 3.0;
+       
+       // Detect matches strictly inside the "Final 1 Hour" window (between 0.0 to 1.0 hours away)
+       const is1HourWindow = diffHours > 0.0 && diffHours <= 1.0;
+
+       // Since the cron triggers strictly hourly, each window will naturally capture exactly one cron ping.
+       return is3HourWindow || is1HourWindow;
      });
 
      if (upcomingMatches.length === 0) {
-       return res.status(200).json({ message: "No matches scheduled within the next 3 hours." });
+       return res.status(200).json({ message: "No matches scheduled within target alert windows." });
      }
      const upcomingMatchIds = upcomingMatches.map(m => m.id);
 

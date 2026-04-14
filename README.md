@@ -36,11 +36,14 @@ src/
 └── main.jsx         # React root render
 
 api/                 # Vercel Serverless Functions
-├── generate-insights.mjs        # Hourly Vercel Cron Job for AI insights
+├── cron-reminders.mjs           # Push Notification Broadcast Router
+├── generate-insights.mjs        # Daily Vercel Cron Job for AI insights
 ├── manual-update-insights.mjs   # API Endpoint for manual trigger
 └── lib/
-    └── insights.mjs             # Shared AI logic & Gemini APIs
+    └── insights.mjs             # Shared AI logic targeting Groq (Llama 3)
 
+public/
+└── service-worker.js            # Foreground interceptor for native Push Notification Banners
 ```
 
 ---
@@ -271,6 +274,16 @@ The app displays various statistics for analyzing performance:
 - View all users in the system
 - Manage/reset passwords
 - Add/remove players from league
+
+---
+
+### 9. **Web Push Notifications**
+**File**: `public/service-worker.js` & `api/cron-reminders.mjs`
+
+The application functions as a native progressive web application, proactively keeping players engaged directly on their device home screens.
+- **Frontend Sync**: The React UI conditionally prompts players asking for `"Notification"` permissions. If approved, `web-push` builds a subscription token and securely logs it inside the Supabase `push_subscriptions` database.
+- **Backend Chronometer**: Due to Vercel's strict Hobby limitations on cron limits, a native Postgres timeline extension (`pg_cron`) fires at the top of every hour securely from the Supabase database out toward Vercel. 
+- **Predictive Banners**: If the Vercel backend detects matches deploying exactly between the `1.0h` and `3.0h` time windows, it sweeps the database, extracts subsets of users who haven't selected their team arrays, and directly forces `web-push` to drop notification banners onto all isolated phones autonomously.
 
 ---
 
@@ -606,6 +619,7 @@ Venky, Naresh, Srikanth B, Prashanth, Sreeram, Santhosh Male
 ---
 
 ## 📌 Version History
+- **v1.2.0** (April 14, 2026): Swapped AI pipeline completely off Google Gemini to Meta Llama 3 via Groq API routing standardizations to definitively eradicate hardware timeouts. Engineered complete Web Push Notification capability, leveraging native Service Worker encryption hooks tightly bound to Supabase `pg_cron` mathematical trigger cycles. 
 - **v1.1.0** (April 12, 2026): Handled array structures for tracking multiple tied players natively for Top Scorer, Best Bowler, and Dot Ball metrics. Inserted Wicket Bonus milestones.
 - **v1.0.1** (April 03, 2026): Migrated backend architecture from Netlify Edge to Vercel Serverless Functions (`api/`) & implemented `vercel.json`.
 - **v1.0.0** (March 30, 2026): Initial release with all core features
@@ -618,8 +632,9 @@ For questions or issues, refer to:
 - **Supabase Docs**: https://supabase.com/docs
 - **React Docs**: https://react.dev
 - **Vite Docs**: https://vitejs.dev
+- **Web Push API**: https://developer.mozilla.org/en-US/docs/Web/API/Push_API
 
 ---
 
-**Last Updated**: April 12, 2026  
+**Last Updated**: April 14, 2026  
 **Status**: ✅ Production Ready

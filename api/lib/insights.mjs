@@ -67,7 +67,8 @@ async function fetchGoogleNewsContext(homeTeam, awayTeam, homeFull, awayFull) {
     try {
       const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-IN&gl=IN&ceid=IN:en`;
       const res = await fetch(rssUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; IPLFantasyBot/1.0)" }
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; IPLFantasyBot/1.0)" },
+        signal: AbortSignal.timeout(3000)
       });
       if (!res.ok) continue;
       const xml = await res.text();
@@ -93,7 +94,8 @@ async function fetchCricbuzzContext(homeTeam, awayTeam) {
   try {
     const searchUrl = `https://www.cricbuzz.com/cricket-match/live-scores`;
     const res = await fetch(searchUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      signal: AbortSignal.timeout(3000)
     });
     if (!res.ok) return "";
     const html = await res.text();
@@ -201,6 +203,7 @@ Do not include any other text or markdown formatting.`;
             generationConfig: { temperature: 0.7 }
             // NO tools/googleSearch — we provide context ourselves
           }),
+          signal: AbortSignal.timeout(8000)
         });
 
         if (!res.ok) {

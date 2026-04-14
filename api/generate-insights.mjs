@@ -42,8 +42,8 @@ export default async (req) => {
 
     console.log(`Found ${matchesNeedingInsights.length} match(es) needing insights`);
 
-    // 3. Generate insights concurrently for up to 4 matches
-    const toProcess = matchesNeedingInsights.slice(0, 4);
+    // 3. Generate insights concurrently for up to 2 matches (Vercel timeout safety limit)
+    const toProcess = matchesNeedingInsights.slice(0, 2);
     const results = [];
 
     await Promise.all(toProcess.map(async ({ match, reason }) => {

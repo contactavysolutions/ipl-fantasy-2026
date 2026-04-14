@@ -45,8 +45,8 @@ export default async (req) => {
     console.log(`Processing ${upcomingToday.length} matches...`);
     const results = [];
 
-    // Process matches concurrently (up to 4 matches logic)
-    const toProcess = upcomingToday.slice(0, 4);
+    // Process matches one by one manually to prevent Vercel 504 timeouts!
+    const toProcess = upcomingToday.slice(0, 1);
 
     await Promise.all(toProcess.map(async (match) => {
       console.log(`Manual generating for M${match.id}: ${match.home} vs ${match.away}`);

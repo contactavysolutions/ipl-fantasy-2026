@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 // ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://olewyqrxgwjjjspeonon.supabase.co";
@@ -1496,11 +1497,99 @@ function LiveScorePage({matches, results, allSelections, playerScores, onSavePla
       
       <div style={{display:"flex",gap:"6px",marginBottom:"20px",borderBottom:"1px solid rgba(255,255,255,0.1)",paddingBottom:"10px",flexWrap:"wrap"}}>
         <button style={S.navBtn(tab==="grid")} onClick={()=>setTab("grid")}>🔴 Live Leaderboard</button>
+        <button style={S.navBtn(tab==="dist")} onClick={()=>setTab("dist")}>📊 Pick Distributions</button>
         <button style={S.navBtn(tab==="update")} onClick={()=>setTab("update")}>✏️ Update Player Stats</button>
       </div>
 
       {tab==="grid" && <LiveGrid matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
+      {tab==="dist" && <LiveDistributions matches={matches} allSelections={allSelections} />}
       {tab==="update" && <PlayerScoresTab matches={matches} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} />}
+    </div>
+  );
+}
+
+function LiveDistributions({matches, allSelections}) {
+  const [now] = useState(new Date());
+  const lockedMatches = matches.filter(m => isMatchLocked(m, now));
+  const [selectedMatchId, setSelectedMatchId] = useState("");
+
+  const m = lockedMatches.find(x => String(x.id) === String(selectedMatchId));
+  if (!m && lockedMatches.length > 0 && selectedMatchId === "") {
+    setSelectedMatchId(lockedMatches[lockedMatches.length - 1].id);
+  }
+
+  const data = { winningTeam: {}, bestBatsman: {}, bestBowler: {}, doubleCategory: {} };
+
+  if (m) {
+    FANTASY_PLAYERS.forEach(name => {
+      const uname = name.toLowerCase().replace(/\s/g,"_");
+      const sel = allSelections[uname]?.[m.id];
+      if (sel) {
+        if (sel.winningTeam) data.winningTeam[sel.winningTeam] = (data.winningTeam[sel.winningTeam]||0) + 1;
+        if (sel.bestBatsman) data.bestBatsman[sel.bestBatsman] = (data.bestBatsman[sel.bestBatsman]||0) + 1;
+        if (sel.bestBowler) data.bestBowler[sel.bestBowler] = (data.bestBowler[sel.bestBowler]||0) + 1;
+        if (sel.doubleCategory) data.doubleCategory[sel.doubleCategory] = (data.doubleCategory[sel.doubleCategory]||0) + 1;
+      }
+    });
+  }
+
+  const formatData = (obj) => Object.entries(obj).map(([name, value]) => ({name, value})).sort((a,b)=>b.value-a.value);
+  const colors = ["#4ade80", "#60a5fa", "#f472b6", "#fbbf24", "#c084fc", "#f87171", "#2dd4bf", "#fcd34d"];
+  
+  const getFill = (name, i) => TEAMS[name] ? TEAMS[name].color : colors[i % colors.length];
+
+  return (
+    <div>
+      <div style={{marginBottom:"16px"}}>
+        <label style={S.label}>Select Match to Analyze</label>
+        <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>setSelectedMatchId(e.target.value)}>
+          <option value="">-- Select a match --</option>
+          {lockedMatches.slice().reverse().map(m=><option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} — {m.date}</option>)}
+        </select>
+      </div>
+
+      {!m ? (
+        <div style={{...S.card,textAlign:"center",color:"#555",padding:"40px"}}>Select a match above to view distributions</div>
+      ) : (
+        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:"20px"}}>
+          {Object.entries({
+            "Winning Team": formatData(data.winningTeam),
+            "Best Batsman": formatData(data.bestBatsman),
+            "Best Bowler": formatData(data.bestBowler),
+            "Double Category": formatData(data.doubleCategory)
+          }).map(([title, chartData]) => (
+            <div key={title} style={{...S.card, padding:"20px", display:"flex", flexDirection:"column", alignItems:"center"}}>
+              <h3 style={{fontSize:"14px", color:"#e8e0d0", marginBottom:"16px", fontWeight:"600", borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:"8px", width:"100%", textAlign:"center"}}>{title}</h3>
+              {chartData.length === 0 ? (
+                <div style={{color:"#555", fontSize:"12px", padding:"40px 0"}}>No data yet</div>
+              ) : (
+                <>
+                  <div style={{width:"100%", height:"240px"}}>
+                    <ResponsiveContainer>
+                      <PieChart>
+                        <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2}>
+                          {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={getFill(entry.name, index)} stroke="rgba(0,0,0,0.5)" strokeWidth={2} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{background:"#1a1f2e", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"8px", color:"#fff"}} itemStyle={{color:"#fff"}} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center", marginTop:"10px"}}>
+                    {chartData.map((d, i) => (
+                      <div key={d.name} style={{display:"flex", alignItems:"center", gap:"6px", fontSize:"11px", color:"#94a3b8"}}>
+                        <div style={{width:"10px", height:"10px", borderRadius:"50%", background:getFill(d.name, i)}}></div>
+                        <span>{d.name} ({d.value})</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

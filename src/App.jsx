@@ -1518,7 +1518,7 @@ function LiveDistributions({matches, allSelections}) {
     setSelectedMatchId(lockedMatches[lockedMatches.length - 1].id);
   }
 
-  const data = { winningTeam: {}, bestBatsman: {}, bestBowler: {}, doubleCategory: {} };
+  const data = { winningTeam: {}, bestBatsman: {}, bestBowler: {}, doubleCategory: {}, winningHorse: {}, losingHorse: {} };
 
   if (m) {
     FANTASY_PLAYERS.forEach(name => {
@@ -1529,6 +1529,8 @@ function LiveDistributions({matches, allSelections}) {
         if (sel.bestBatsman) data.bestBatsman[sel.bestBatsman] = (data.bestBatsman[sel.bestBatsman]||0) + 1;
         if (sel.bestBowler) data.bestBowler[sel.bestBowler] = (data.bestBowler[sel.bestBowler]||0) + 1;
         if (sel.doubleCategory) data.doubleCategory[sel.doubleCategory] = (data.doubleCategory[sel.doubleCategory]||0) + 1;
+        if (sel.winningHorse) data.winningHorse[sel.winningHorse] = (data.winningHorse[sel.winningHorse]||0) + 1;
+        if (sel.losingHorse) data.losingHorse[sel.losingHorse] = (data.losingHorse[sel.losingHorse]||0) + 1;
       }
     });
   }
@@ -1556,7 +1558,9 @@ function LiveDistributions({matches, allSelections}) {
             "Winning Team": formatData(data.winningTeam),
             "Best Batsman": formatData(data.bestBatsman),
             "Best Bowler": formatData(data.bestBowler),
-            "Double Category": formatData(data.doubleCategory)
+            "Double Category": formatData(data.doubleCategory),
+            "🏆 Winning Horse": formatData(data.winningHorse),
+            "💀 Losing Horse": formatData(data.losingHorse)
           }).map(([title, chartData]) => (
             <div key={title} style={{...S.card, padding:"20px", display:"flex", flexDirection:"column", alignItems:"center"}}>
               <h3 style={{fontSize:"14px", color:"#e8e0d0", marginBottom:"16px", fontWeight:"600", borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:"8px", width:"100%", textAlign:"center"}}>{title}</h3>

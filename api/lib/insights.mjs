@@ -131,11 +131,11 @@ async function fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) {
 // ─── STEP 2: Use Gemini (without search) to structure the data ───────────────
 
 export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
-  const keysInput = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
+  const keysInput = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
   const apiKeys = keysInput.split(',').map(k => k.trim()).filter(Boolean);
 
   if (!apiKeys.length) {
-    return { success: false, error: "GEMINI_API_KEYS missing in environment" };
+    return { success: false, error: "GROQ_API_KEYS missing" };
   }
 
   const homeFull = TEAMS[homeTeam] || homeTeam;
@@ -181,27 +181,31 @@ IMPORTANT: Return your response ONLY as a valid JSON object with exactly these k
 }
 Do not include any other text or markdown formatting.`;
 
-  // Step 3: Call Gemini WITHOUT search tool (no quota issues)
+  // Step 3: Call Groq API natively
   const models = [
-    { id: "gemini-2.5-flash", version: "v1beta" },
-    { id: "gemini-2.0-flash-001", version: "v1beta" },
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant"
   ];
 
   let lastError = "";
 
-  for (const GEMINI_API_KEY of apiKeys) {
+  for (const apiKey of apiKeys) {
     for (const model of models) {
-      console.log(`📡 Generating with ${model.id} using sharded key...`);
-      const url = `https://generativelanguage.googleapis.com/${model.version}/models/${model.id}:generateContent?key=${GEMINI_API_KEY}`;
+      console.log(`📡 Generating with Groq model ${model}...`);
+      const url = `https://api.groq.com/openai/v1/chat/completions`;
 
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7 }
-            // NO tools/googleSearch — we provide context ourselves
+            messages: [{ role: "user", content: prompt }],
+            model: model,
+            temperature: 0.7,
+            response_format: { type: "json_object" }
           }),
           signal: AbortSignal.timeout(15000)
         });
@@ -209,32 +213,32 @@ Do not include any other text or markdown formatting.`;
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           const msg = errData?.error?.message || `HTTP ${res.status}`;
-          console.error(`⚠️ Gemini API error for ${model.id}: ${msg}`);
-          lastError = `${model.id}: ${msg}`;
-          continue; // Always continue to the next model/key combo instead of abandoning
+          console.error(`⚠️ Groq API error for ${model}: ${msg}`);
+          lastError = `${model}: ${msg}`;
+          continue; 
         }
 
         const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = data?.choices?.[0]?.message?.content;
 
         if (!text) {
-          lastError = `${model.id}: Empty response from API`;
+          lastError = `${model}: Empty response from API`;
           continue;
         }
 
         // Extract JSON from response
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
-          lastError = `${model.id}: Invalid JSON format in response`;
+          lastError = `${model}: Invalid JSON format in response`;
           continue;
         }
 
         const insights = JSON.parse(jsonMatch[0]);
-        console.log(`✅ Success with ${model.id}`);
+        console.log(`✅ Success with Groq ${model}`);
         return { success: true, insights };
       } catch (err) {
-        console.error(`⚠️ Error with ${model.id}:`, err.message);
-        lastError = `${model.id}: ${err.message}`;
+        console.error(`⚠️ Error with Groq ${model}:`, err.message);
+        lastError = `${model}: ${err.message}`;
         continue;
       }
     }

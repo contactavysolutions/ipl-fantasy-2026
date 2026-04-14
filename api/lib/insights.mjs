@@ -203,7 +203,7 @@ Do not include any other text or markdown formatting.`;
             generationConfig: { temperature: 0.7 }
             // NO tools/googleSearch — we provide context ourselves
           }),
-          signal: AbortSignal.timeout(8000)
+          signal: AbortSignal.timeout(15000)
         });
 
         if (!res.ok) {
@@ -254,7 +254,7 @@ Do not include any other text or markdown formatting.`;
       pitch_report: "Historical data analysis pending. AI API quota limit reached. Check back later.",
       head_to_head: "Data not pulled.",
       key_matchups: "AI Service momentarily offline.",
-      prediction_summary: "Fallback invoked: All API keys exhausted."
+      prediction_summary: `Fallback invoked. Error trace: ${lastError || 'Unknown Error'}`
     }
   };
 }

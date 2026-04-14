@@ -287,6 +287,16 @@ The application functions as a native progressive web application, proactively k
 
 ---
 
+### 10. **Live Pick Distributions (Gamification Analytics)**
+**File**: `src/App.jsx` (LiveDistributions Component)
+
+The system deploys 6 fully animated analytical pie charts dynamically tracking locked matches.
+- **Anti-Cheat Lock**: Placed structurally inside the `Live Match Center` block to guarantee users can only visualize league-wide pick aggregates AFTER matches lock. 
+- **Dynamic Recharts Engine**: Maps React state aggregates directly into SVG `<ResponsiveContainer>` blocks powered by `recharts`.
+- **Intelligent Branding**: Winning team arrays autonomously dynamically map colors to match real-world IPL franchises (e.g. CSK -> Yellow #F5A623). 
+
+---
+
 ## 🗄️ Database Schema (Supabase)
 
 ### Table: `users`
@@ -619,7 +629,7 @@ Venky, Naresh, Srikanth B, Prashanth, Sreeram, Santhosh Male
 ---
 
 ## 📌 Version History
-- **v1.2.0** (April 14, 2026): Swapped AI pipeline completely off Google Gemini to Meta Llama 3 via Groq API routing standardizations to definitively eradicate hardware timeouts. Engineered complete Web Push Notification capability, leveraging native Service Worker encryption hooks tightly bound to Supabase `pg_cron` mathematical trigger cycles. 
+- **v1.2.0** (April 14, 2026): Swapped AI pipeline completely off Google Gemini to Meta Llama 3 via Groq API routing standardizations to definitively eradicate hardware timeouts. Engineered complete Web Push Notification capability, leveraging native Service Worker encryption hooks tightly bound to Supabase `pg_cron` mathematical trigger cycles. Designed a dynamic `<LiveDistributions>` dashboard utilizing `recharts` to mathematically plot global Pick Distributions synchronously.
 - **v1.1.0** (April 12, 2026): Handled array structures for tracking multiple tied players natively for Top Scorer, Best Bowler, and Dot Ball metrics. Inserted Wicket Bonus milestones.
 - **v1.0.1** (April 03, 2026): Migrated backend architecture from Netlify Edge to Vercel Serverless Functions (`api/`) & implemented `vercel.json`.
 - **v1.0.0** (March 30, 2026): Initial release with all core features

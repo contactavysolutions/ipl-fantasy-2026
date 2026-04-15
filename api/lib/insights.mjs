@@ -17,6 +17,21 @@ const TEAMS = {
   LSG: "Lucknow Super Giants",
 };
 
+// ─── AUTHORITATIVE IPL 2026 SQUADS ───────────────────────────────────────────
+// These are the ONLY valid player names. Injected into the AI prompt to prevent hallucination.
+const SQUADS_2026 = {
+  CSK: ["Ruturaj Gaikwad","MS Dhoni","Sanju Samson","Kartik Sharma","Urvil Patel","Dewald Brevis","Ayush Mhatre","Sarfaraz Khan","Shivam Dube","Matthew Short","Jamie Overton","Ramakrishna Ghosh","Anshul Kamboj","Prashant Veer","Aman Khan","Zak Foulkes","Khaleel Ahmed","Mukesh Choudhary","Gurjapneet Singh","Matt Henry","Spencer Johnson","Shreyas Gopal","Rahul Chahar","Noor Ahmad","Akeal Hosein"],
+  DC:  ["Axar Patel","KL Rahul","Prithvi Shaw","David Miller","Tristan Stubbs","Abhishek Porel","Karun Nair","Sameer Rizvi","Ashutosh Sharma","Mitchell Starc","T. Natarajan","Mukesh Kumar","Dushmantha Chameera","Lungi Ngidi","Kyle Jamieson","Nitish Rana","Kuldeep Yadav","Ajay Mandal","Tripurana Vijay","Madhav Tiwari","Pathum Nissanka","Sahil Parakh","Vipraj Nigam","Ben Duckett","Auqib Nabi"],
+  GT:  ["Shubman Gill","Jos Buttler","Sai Sudharsan","Shahrukh Khan","Anuj Rawat","Kumar Kushagra","Nishant Sindhu","Rahul Tewatia","Washington Sundar","Rashid Khan","Jason Holder","Kagiso Rabada","Mohammed Siraj","Prasidh Krishna","Ishant Sharma","Sai Kishore","Jayant Yadav","Manav Suthar","Arshad Khan","Gurnoor Singh Brar","Kulwant Khejroliya","Glenn Phillips","Tom Banton","Luke Wood","Ashok Sharma"],
+  KKR: ["Ajinkya Rahane","Cameron Green","Rinku Singh","Sunil Narine","Varun Chakravarthy","Navdeep Saini","Saurabh Dubey","Blessing Muzarabani","Angkrish Raghuvanshi","Vaibhav Arora","Matheesha Pathirana","Umran Malik","Manish Pandey","Rovman Powell","Finn Allen","Rachin Ravindra","Daksh Kamra","Tim Seifert","Kartik Tyagi","Prashant Solanki","Anukul Roy","Rahul Tripathi","Ramandeep Singh","Sarthak Ranjan","Tejasvi Singh"],
+  LSG: ["Rishabh Pant","Nicholas Pooran","Ayush Badoni","Mohammed Shami","Avesh Khan","Mohsin Khan","Arshin Kulkarni","Shahbaz Ahmed","Aiden Markram","Abdul Samad","Wanindu Hasaranga","Himmat Singh","Akshat Raghuwanshi","Mitchell Marsh","Arjun Tendulkar","Matthew Breetzke","Josh Inglis","Mukul Choudhary","Akash Maharaj Singh","Anrich Nortje","Prince Yadav","Digvesh Singh Rathi","Mayank Yadav","Naman Tiwari","Manimaran Siddharth"],
+  MI:  ["Hardik Pandya","Rohit Sharma","Suryakumar Yadav","Tilak Varma","Quinton de Kock","Ryan Rickelton","Naman Dhir","Danish Malewar","Sherfane Rutherford","Will Jacks","Mitchell Santner","Shardul Thakur","Raj Bawa","Corbin Bosch","Jasprit Bumrah","Trent Boult","Deepak Chahar","Mayank Markande","Atharva Ankolekar","AM Ghazanfar","Mayank Rawat","Mohammad Izhar","Raghu Sharma","Robin Minz","Ashwani Kumar"],
+  PBKS:["Marcus Stoinis","Shreyas Iyer","Prabhsimran Singh","Arshdeep Singh","Harpreet Brar","Shashank Singh","Yuzvendra Chahal","Marco Jansen","Priyansh Arya","Pyla Avinash","Nehal Wadhera","Harnoor Singh","Mitchell Owen","Musheer Khan","Suryansh Shedge","Cooper Connolly","Azmatullah Omarzai","Praveen Dubey","Vishnu Vinod","Lockie Ferguson","Xavier Bartlett","Ben Dwarshuis","Vishal Nishad","Vijaykumar Vyshak","Yash Thakur"],
+  RCB: ["Rajat Patidar","Virat Kohli","Devdutt Padikkal","Tim David","Phil Salt","Jitesh Sharma","Jordan Cox","Jacob Bethell","Venkatesh Iyer","Krunal Pandya","Romario Shepherd","Swapnil Singh","Bhuvneshwar Kumar","Rasikh Salam","Suyash Sharma","Vicky Ostwal","Jacob Duffy","Nuwan Thushara","Abhinandan Singh","Mangesh Yadav","Kanishk Chouhan","Vihaan Malhotra","Satvik Deswal","Josh Hazlewood","Yash Dayal"],
+  RR:  ["Riyan Parag","Yashasvi Jaiswal","Dhruv Jurel","Shimron Hetmyer","Shubham Dubey","Ravindra Jadeja","Dasun Shanaka","Kuldeep Sen","Nandre Burger","Donovan Ferreira","Aman Rao Perala","Vaibhav Suryavanshi","Ravi Singh","Lhuan-dre Pretorius","Jofra Archer","Tushar Deshpande","Kwena Maphaka","Sandeep Sharma","Vignesh Puthur","Brijesh Sharma","Sushant Mishra","Yash Raj Punja","Adam Milne","Ravi Bishnoi","Yudhvir Singh Charak"],
+  SRH: ["Liam Livingstone","Harshal Patel","Pat Cummins","Ishan Kishan","Travis Head","Heinrich Klaasen","Abhishek Sharma","Nitish Kumar Reddy","Jaydev Unadkat","David Payne","Aniket Verma","Smaran Ravichandran","Kamindu Mendis","Harsh Dubey","Shivang Kumar","Salil Arora","Brydon Carse","Eshan Malinga","Zeeshan Ansari","Sakib Hussain","Onkar Tarmale","Amit Kumar","Praful Hinge","Shivam Mavi","Krains Fuletra"],
+};
+
 export async function supabaseQuery(table, params = "") {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
     headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
@@ -128,7 +143,7 @@ async function fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) {
   return combined || null;
 }
 
-// ─── STEP 2: Use Gemini (without search) to structure the data ───────────────
+// ─── STEP 2: Use Groq LLM to structure the data ─────────────────────────────
 
 export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
   const keysInput = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
@@ -146,23 +161,38 @@ export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
   try {
     scrapedContext = await fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) || "";
   } catch (e) {
-    console.log("⚠️ Scraping failed, proceeding with LLM knowledge only:", e.message);
+    console.log("⚠️ Scraping failed, proceeding with squad data only:", e.message);
   }
 
-  // Step 2: Build a context-enriched prompt
+  // Step 2: Build roster-constrained prompt
+  const homeSquad = SQUADS_2026[homeTeam] || [];
+  const awaySquad = SQUADS_2026[awayTeam] || [];
+
+  const rosterBlock = `
+CRITICAL CONSTRAINT — IPL 2026 OFFICIAL SQUADS:
+You MUST ONLY select players from these verified rosters. Do NOT use any player not listed below.
+
+${homeTeam} (${homeFull}) Full Squad:
+${homeSquad.join(", ")}
+
+${awayTeam} (${awayFull}) Full Squad:
+${awaySquad.join(", ")}
+`;
+
   const contextBlock = scrapedContext
-    ? `\n\nHere is recent news and data scraped from cricket websites about this match. Use this as your PRIMARY source of information:\n---\n${scrapedContext.substring(0, 4000)}\n---\n`
-    : "\n\n(Note: No recent articles were found. Use your training knowledge about IPL 2026 teams and recent form.)\n";
+    ? `\nHere is recent news and data scraped from cricket websites about this match. Use this as additional context:\n---\n${scrapedContext.substring(0, 3000)}\n---\n`
+    : "";
 
   const prompt = `You are an expert IPL cricket analyst providing match preview insights for fantasy cricket players.
 
 For the IPL 2026 match: ${homeFull} (${homeTeam}) vs ${awayFull} (${awayTeam}) scheduled on ${matchDate}:
+${rosterBlock}
 ${contextBlock}
-Based on the above context and your knowledge, provide:
-1. PROBABLE PLAYING XI for both teams (11 players each). Use actual squad members only.
-2. IN-FORM BATSMEN and BOWLERS for both teams (with recent stats if available).
+Based on the official squads above and any scraped context, provide:
+1. PROBABLE PLAYING XI for both teams (11 players each). You MUST pick ONLY from the squad lists above. Any name not in those lists is WRONG.
+2. IN-FORM BATSMEN and BOWLERS for both teams.
 3. PITCH REPORT and Venue analysis.
-4. HEAD TO HEAD summary.
+4. HEAD TO HEAD summary for IPL 2026 season.
 5. KEY MATCHUPS to watch.
 6. PREDICTION SUMMARY.
 

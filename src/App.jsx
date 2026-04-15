@@ -65,6 +65,50 @@ const PLAYERS = {
 
 const WICKET_RANGES = ["<5","5-8","9-11","12-13","14-15","16-17","18-20"];
 const DOUBLE_CATEGORIES = ["Winning Team","Best Batsman","Best Bowler","Powerplay Winner","Dot-Ball Bowler","Total Wickets"];
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// Returns the ID of the most relevant match: the next upcoming locked match, or the most recent completed.
+function getDefaultMatchId(matches, now) {
+  // Find the most recently locked match (closest to now but already locked)
+  const locked = matches.filter(m => isMatchLocked(m, now));
+  if (locked.length > 0) return locked[locked.length - 1].id;
+  return "";
+}
+
+// All 2026 roster names in a flat Set for instant validation
+const ALL_ROSTER_NAMES = new Set(Object.values(PLAYERS).flat());
+
+// Returns a sarcastic streak badge based on last N winning-team picks
+function getStreakBadge(results, userSelections, matches, now) {
+  const locked = matches.filter(m => isMatchLocked(m, now) && results[m.id]);
+  const recent = locked.slice(-5);
+  if (recent.length === 0) return { emoji: "🧊", label: "Warming Up" };
+  const streakArr = recent.map(m => {
+    const sel = userSelections[m.id];
+    return sel && results[m.id] && sel.winningTeam === results[m.id].winningTeam;
+  });
+  // Check consecutive streaks from the end
+  let hotStreak = 0, coldStreak = 0;
+  for (let i = streakArr.length - 1; i >= 0; i--) {
+    if (streakArr[i]) { hotStreak++; if (coldStreak > 0) break; }
+    else break;
+  }
+  for (let i = streakArr.length - 1; i >= 0; i--) {
+    if (!streakArr[i]) { coldStreak++; if (hotStreak > 0) break; }
+    else break;
+  }
+  const correct = streakArr.filter(Boolean).length;
+  if (recent.length >= 5 && correct === 5) return { emoji: "🎯", label: "Sniper" };
+  if (recent.length >= 5 && correct === 0) return { emoji: "💀", label: "Throwing" };
+  if (hotStreak >= 3) return { emoji: "🔥", label: "On Fire!" };
+  if (coldStreak >= 3) return { emoji: "❄️", label: "Ice Cold" };
+  // Alternating
+  let alternating = true;
+  for (let i = 1; i < streakArr.length; i++) { if (streakArr[i] === streakArr[i-1]) { alternating = false; break; } }
+  if (recent.length >= 3 && alternating) return { emoji: "🎲", label: "Coin Flip" };
+  if (recent.length <= 1) return { emoji: "🧊", label: "Warming Up" };
+  return null;
+}
 const FANTASY_PLAYERS = ["Ani","Haren","Ganga","Jitendar","Mahesh","Nag","Naren","Navdeep","Omkar","Peddi","Praveen","Raghav","Ranga","Rohit","Sandeep","Santhosh","Soma","Sridhar K","Krishna","Venky","Naresh","Srikanth B","Prashanth","Sreeram","Santhosh Male","Ranjith"].sort();
 
 // ─── SCORING ENGINE ───────────────────────────────────────────────────────────
@@ -227,7 +271,7 @@ function TeamLogo({team,size=48}) {
 // ─── MATCHES LIST ─────────────────────────────────────────────────────────────
 function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
   const [now]=useState(new Date());
-  const [filter,setFilter]=useState("all");
+  const [filter,setFilter]=useState("open");
   const filtered = matches.filter(m=>{
     const st=getStatus(m,now,results,userSel);
     if(filter==="open") return st==="open"||st==="submitted";
@@ -251,7 +295,7 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"12px",marginBottom:"24px"}}>
         <div><h1 style={S.h1}>Matches</h1><p style={{color:"#666",fontSize:"13px"}}>IPL 2026 · 70 matches</p></div>
         <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
-          {["all","open","locked","completed"].map(f=>(
+          {["open","locked","completed","all"].map(f=>(
             <button key={f} style={S.navBtn(filter===f)} onClick={()=>setFilter(f)}>{f.charAt(0).toUpperCase()+f.slice(1)}</button>
           ))}
         </div>
@@ -355,9 +399,15 @@ function InsightsPanel({insights,match}) {
                     <TeamLogo team={team} size={28}/>
                     <span style={{fontSize:"14px",fontWeight:700,color:"#f8fafc"}}>{team}</span>
                   </div>
-                  {(xi||[]).map((p,i)=>(
-                    <div key={i} style={{fontSize:"11px",color:"#94a3b8",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,0.03)"}}>{i+1}. {p}</div>
-                  ))}
+                  {(xi||[]).map((p,i)=>{
+                    const isValid = ALL_ROSTER_NAMES.has(p);
+                    return (
+                      <div key={i} style={{fontSize:"11px",color:isValid?"#94a3b8":"#f87171",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,0.03)",display:"flex",alignItems:"center",gap:"4px"}}>
+                        {i+1}. {p}
+                        {!isValid && <span title="This player may not be on the 2026 roster" style={{fontSize:"9px",background:"rgba(239,68,68,0.15)",color:"#f87171",padding:"1px 4px",borderRadius:"3px",fontWeight:600}}>⚠️ Unverified</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -520,7 +570,8 @@ function LeaderboardContent({matches,results,allSelections,playerScores}) {
     const uSel=allSelections[uname]||{};
     let total=0,matchCount=0;
     activeMatches.forEach(m=>{if(uSel[m.id]){total+=calcPoints(uSel[m.id],results[m.id],playerScores[m.id]).total;matchCount++;}});
-    return {name,total,matchCount};
+    const badge = getStreakBadge(results, uSel, matches, now);
+    return {name,total,matchCount,badge};
   }).sort((a,b)=>b.total-a.total);
   const medals=["🥇","🥈","🥉"];
   const maxPts=scores[0]?.total||1;
@@ -545,6 +596,7 @@ function LeaderboardContent({matches,results,allSelections,playerScores}) {
               <div key={s.name} style={{background:colors.bg,border:`1px solid ${colors.border}`,borderRadius:"16px",padding:"20px 12px",textAlign:"center"}}>
                 <div style={{fontSize:"28px",marginBottom:"6px"}}>{medals[i]}</div>
                 <div style={{fontSize:"14px",fontWeight:700,color:"#f8fafc",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                {s.badge && <div style={{fontSize:"10px",marginBottom:"4px"}}><span style={{background:"rgba(255,255,255,0.08)",padding:"2px 6px",borderRadius:"8px",fontSize:"10px"}}>{s.badge.emoji} {s.badge.label}</span></div>}
                 <div style={{fontSize:"11px",color:"#64748b",marginBottom:"8px"}}>{s.matchCount} matches</div>
                 <div style={{fontSize:"24px",fontWeight:800,color:colors.text}}>{s.total}</div>
                 <div style={{fontSize:"10px",color:"#64748b",fontWeight:600,letterSpacing:"0.5px"}}>POINTS</div>
@@ -564,7 +616,7 @@ function LeaderboardContent({matches,results,allSelections,playerScores}) {
               <span style={{fontSize:"13px",fontWeight:700,color:"#64748b",minWidth:"28px",textAlign:"center"}}>#{rank}</span>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"4px"}}>
-                  <span style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+                  <span style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:"6px"}}>{s.name}{s.badge && <span style={{fontSize:"10px",background:"rgba(255,255,255,0.06)",padding:"1px 5px",borderRadius:"6px",flexShrink:0}}>{s.badge.emoji} {s.badge.label}</span>}</span>
                   <span style={{fontSize:"14px",fontWeight:700,color:"#fbbf24",flexShrink:0,marginLeft:"8px"}}>{s.total}</span>
                 </div>
                 <div style={{height:"3px",background:"rgba(255,255,255,0.06)",borderRadius:"2px",overflow:"hidden"}}>
@@ -847,7 +899,13 @@ const SEL_FIELDS=[
 
 function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=false,isAdmin=false}) {
   const [now]=useState(new Date());
-  const [selectedMatchId,setSelectedMatchId]=useState("");
+  const [selectedMatchId,setSelectedMatchId]=useState(()=>{
+    const locked=matches.filter(m=>isMatchLocked(m,now));
+    // Also include near-future matches for admin
+    const upcoming=matches.filter(m=>{ const h=(new Date(m.lock_time)-now)/(1000*60*60); return h>0&&h<=48; });
+    const all=[...locked,...upcoming];
+    return all.length>0?String(all[all.length-1].id):"";
+  });
   const [editingPlayer,setEditingPlayer]=useState(null);
   const [editForm,setEditForm]=useState({});
   const [saving,setSaving]=useState(false);
@@ -1061,7 +1119,11 @@ function AIInsightsTab({matches}) {
 
 // ─── PLAYER SCORES TAB ────────────────────────────────────────────────────────
 function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScores}) {
-  const [selectedMatchId, setSelectedMatchId] = useState("");
+  const [selectedMatchId, setSelectedMatchId] = useState(()=>{
+    const now2=new Date();
+    const locked=matches.filter(m=>isMatchLocked(m,now2));
+    return locked.length>0?String(locked[locked.length-1].id):"";
+  });
   const [scores, setScores] = useState({});
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
@@ -1601,7 +1663,10 @@ function LiveDistributions({matches, allSelections}) {
 function LiveGrid({matches, results, allSelections, playerScores}) {
   const [now] = useState(new Date());
   const lockedMatches = matches.filter(m => isMatchLocked(m, now));
-  const [selectedMatchId, setSelectedMatchId] = useState("");
+  const [selectedMatchId, setSelectedMatchId] = useState(()=>{
+    const locked2=matches.filter(m=>isMatchLocked(m,now));
+    return locked2.length>0?String(locked2[locked2.length-1].id):"";
+  });
 
   const m = lockedMatches.find(x => String(x.id) === String(selectedMatchId));
   

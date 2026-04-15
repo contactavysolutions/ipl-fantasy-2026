@@ -1124,7 +1124,7 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
 
     let wicketsBonus = 0;
     if (wickets >= 4) wicketsBonus = 25;
-    else if (wickets >= 2) wicketsBonus = 15;
+    else if (wickets >= 3) wicketsBonus = 15;
 
     const batsman_score = runs + runsBonus + (fours * 2) + (sixes * 3);
     const bowler_score = (wickets * 25) + (maidens * 25) + wicketsBonus;

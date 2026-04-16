@@ -32,10 +32,13 @@ export default async (req) => {
       if (hoursUntilLock < 0) continue;
 
       const hasInsights = insightsMap[match.id];
+      const insightsAge = hasInsights ? (now - new Date(hasInsights)) / (1000 * 60 * 60) : Infinity;
+      const isStale = insightsAge > 12;
 
-      // For Vercel Cron (Daily at 00:00 UTC): Collect any matches up to 72 hours out that don't have insights yet.
-      if (hoursUntilLock <= 72 && hoursUntilLock > 0 && !hasInsights) {
-        matchesNeedingInsights.push({ match, reason: "initial (0-72h before)" });
+      // Generate insights if: no insights yet, OR insights are > 12h old (stale)
+      if (hoursUntilLock <= 72 && hoursUntilLock > 0 && (!hasInsights || isStale)) {
+        const reason = !hasInsights ? "initial (0-72h before)" : `stale (${Math.round(insightsAge)}h old)`;
+        matchesNeedingInsights.push({ match, reason });
         continue;
       }
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 // ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
@@ -1746,7 +1746,7 @@ function LiveGrid({matches, results, allSelections, playerScores, user}) {
                   { label: "💀 Horse", key: "losingHorse",    resKey: res?.matchBottomPlayer },
                 ];
                 return (
-                  <React.Fragment key={row.name}>
+                  <Fragment key={row.name}>
                     <tr style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)",cursor:isAdmin?"pointer":"default"}} onClick={()=>isAdmin&&setExpandedRow(isExpanded?null:row.name)}>
                       <td style={{padding:"6px 10px",color:"#e8e0d0",fontWeight:"bold",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>
                         {isAdmin && <span style={{fontSize:"10px",marginRight:"5px",color:"#475569"}}>{isExpanded?"▼":"▶"}</span>}
@@ -1786,7 +1786,7 @@ function LiveGrid({matches, results, allSelections, playerScores, user}) {
                         </td>
                       </tr>
                     )}
-                  </React.Fragment>
+                  </Fragment>
                 );
               })}
             </tbody>

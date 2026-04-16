@@ -53,93 +53,58 @@ export async function supabaseUpsert(table, data) {
   return res.json();
 }
 
-// ─── STEP 1: Scrape real match context from the web ──────────────────────────
+// ─── STEP 1: Fetch real-time match context via Tavily ────────────────────────
 
-function stripHtml(html) {
-  return html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-async function fetchGoogleNewsContext(homeTeam, awayTeam, homeFull, awayFull) {
-  const queries = [
-    `${homeFull} vs ${awayFull} IPL 2026 match preview probable XI`,
-    `${homeTeam} vs ${awayTeam} IPL 2026 pitch report`,
-  ];
-
-  let allSnippets = [];
-
-  for (const q of queries) {
-    try {
-      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-IN&gl=IN&ceid=IN:en`;
-      const res = await fetch(rssUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; IPLFantasyBot/1.0)" },
-        signal: AbortSignal.timeout(3000)
-      });
-      if (!res.ok) continue;
-      const xml = await res.text();
-
-      // Extract titles and descriptions from RSS XML
-      const titles = [...xml.matchAll(/<title><!\[CDATA\[(.*?)\]\]><\/title>/g)].map(m => m[1]);
-      const descs = [...xml.matchAll(/<description><!\[CDATA\[(.*?)\]\]><\/description>/g)].map(m => stripHtml(m[1]));
-
-      // Also try without CDATA
-      const titles2 = [...xml.matchAll(/<title>([^<]+)<\/title>/g)].map(m => m[1]).filter(t => t !== "Google News");
-      const descs2 = [...xml.matchAll(/<description>([^<]+)<\/description>/g)].map(m => m[1]);
-
-      allSnippets.push(...titles, ...titles2, ...descs, ...descs2);
-    } catch (e) {
-      console.log(`⚠️ Google News fetch failed for "${q}":`, e.message);
-    }
-  }
-
-  return allSnippets.filter(Boolean).slice(0, 30).join("\n");
-}
-
-async function fetchCricbuzzContext(homeTeam, awayTeam) {
+async function tavilySearch(query, tavilyKey, opts = {}) {
   try {
-    const searchUrl = `https://www.cricbuzz.com/cricket-match/live-scores`;
-    const res = await fetch(searchUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-      signal: AbortSignal.timeout(3000)
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tavilyKey}` },
+      body: JSON.stringify({
+        query,
+        topic: "news",
+        search_depth: "basic",
+        max_results: 5,
+        time_range: "week",        // Only articles from the last 7 days
+        include_answer: false,
+        include_raw_content: false,
+        country: "india",
+        ...opts
+      }),
+      signal: AbortSignal.timeout(6000)
     });
-    if (!res.ok) return "";
-    const html = await res.text();
-    const text = stripHtml(html);
-    // Extract any relevant snippets mentioning our teams
-    const sentences = text.split(/[.!?]/).filter(s =>
-      s.toLowerCase().includes(homeTeam.toLowerCase()) ||
-      s.toLowerCase().includes(awayTeam.toLowerCase())
-    );
-    return sentences.slice(0, 10).join(". ");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.log(`⚠️ Tavily error: ${err?.detail || res.status}`);
+      return "";
+    }
+    const data = await res.json();
+    // Concatenate titles + content snippets from each result
+    return (data.results || [])
+      .map(r => `[${r.title}]\n${r.content}`)
+      .join("\n\n");
   } catch (e) {
-    console.log("⚠️ Cricbuzz fetch failed:", e.message);
+    console.log(`⚠️ Tavily search failed for "${query}":`, e.message);
     return "";
   }
 }
 
-async function fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) {
-  console.log(`🔍 Scraping match context for ${homeTeam} vs ${awayTeam}...`);
+async function fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull, tavilyKey) {
+  if (!tavilyKey) {
+    console.log("⚠️ TAVILY_API_KEY not set — skipping live search");
+    return null;
+  }
 
-  // Try multiple sources in parallel
-  const [newsContext, cricbuzzContext] = await Promise.all([
-    fetchGoogleNewsContext(homeTeam, awayTeam, homeFull, awayFull),
-    fetchCricbuzzContext(homeFull, awayFull),
+  console.log(`🔍 Tavily: fetching live match context for ${homeTeam} vs ${awayTeam}...`);
+
+  // Run two targeted searches in parallel — match preview + pitch/venue
+  const [matchContext, pitchContext] = await Promise.all([
+    tavilySearch(`${homeFull} vs ${awayFull} IPL 2026 match preview probable XI playing 11 team news`, tavilyKey),
+    tavilySearch(`${homeFull} vs ${awayFull} IPL 2026 pitch report venue head to head`, tavilyKey),
   ]);
 
-  const combined = [newsContext, cricbuzzContext].filter(Boolean).join("\n\n");
-  const contextLength = combined.length;
-  console.log(`📰 Scraped ${contextLength} chars of match context`);
-
+  const combined = [matchContext, pitchContext].filter(Boolean).join("\n\n");
+  console.log(`📰 Tavily returned ${combined.length} chars of live match context`);
   return combined || null;
 }
 
@@ -148,6 +113,7 @@ async function fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) {
 export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
   const keysInput = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
   const apiKeys = keysInput.split(',').map(k => k.trim()).filter(Boolean);
+  const tavilyKey = process.env.TAVILY_API_KEY || "";
 
   if (!apiKeys.length) {
     return { success: false, error: "GROQ_API_KEYS missing" };
@@ -156,12 +122,12 @@ export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
   const homeFull = TEAMS[homeTeam] || homeTeam;
   const awayFull = TEAMS[awayTeam] || awayTeam;
 
-  // Step 1: Scrape real data from the web
+  // Step 1: Fetch live match context via Tavily
   let scrapedContext = "";
   try {
-    scrapedContext = await fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull) || "";
+    scrapedContext = await fetchMatchContext(homeTeam, awayTeam, homeFull, awayFull, tavilyKey) || "";
   } catch (e) {
-    console.log("⚠️ Scraping failed, proceeding with squad data only:", e.message);
+    console.log("⚠️ Tavily fetch failed, proceeding with squad data only:", e.message);
   }
 
   // Step 2: Build roster-constrained prompt

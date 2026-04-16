@@ -66,13 +66,38 @@ const PLAYERS = {
 const WICKET_RANGES = ["<5","5-8","9-11","12-13","14-15","16-17","18-20"];
 const DOUBLE_CATEGORIES = ["Winning Team","Best Batsman","Best Bowler","Powerplay Winner","Dot-Ball Bowler","Total Wickets"];
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-// Returns the ID of the most relevant match: the next upcoming locked match, or the most recent completed.
-function getDefaultMatchId(matches, now) {
-  // Find the most recently locked match (closest to now but already locked)
-  const locked = matches.filter(m => isMatchLocked(m, now));
-  if (locked.length > 0) return locked[locked.length - 1].id;
-  return "";
+// ─── MATCH DEFAULT SELECTION HELPERS ─────────────────────────────────────────
+
+// For LIVE/ADMIN screens: show the currently ongoing or most recently locked match today.
+// Priority: 1) Ongoing today (locked within last 5h)  2) First locked today  3) Most recent locked overall
+function getDefaultLiveMatchId(matches, now) {
+  const todayStr = now.toISOString().slice(0, 10);
+  // Matches locked today
+  const lockedToday = matches.filter(m => isMatchLocked(m, now) && m.date === todayStr);
+  if (lockedToday.length > 0) {
+    // Prefer match that locked most recently (ongoing) — sorted by lock_time desc
+    const sorted = [...lockedToday].sort((a, b) => new Date(b.lock_time) - new Date(a.lock_time));
+    return String(sorted[0].id);
+  }
+  // Fallback: most recently locked match overall
+  const allLocked = matches.filter(m => isMatchLocked(m, now));
+  return allLocked.length > 0 ? String(allLocked[allLocked.length - 1].id) : "";
+}
+
+// For PICKS screen: show the soonest open (not yet locked) match today,
+// or the soonest open match overall if nothing is open today.
+function getDefaultPicksMatchId(matches, now) {
+  const todayStr = now.toISOString().slice(0, 10);
+  // Open matches today, sorted by lock_time ascending (soonest first)
+  const openToday = matches
+    .filter(m => !isMatchLocked(m, now) && m.date === todayStr)
+    .sort((a, b) => new Date(a.lock_time) - new Date(b.lock_time));
+  if (openToday.length > 0) return String(openToday[0].id);
+  // Fallback: soonest open match overall
+  const openAll = matches
+    .filter(m => !isMatchLocked(m, now))
+    .sort((a, b) => new Date(a.lock_time) - new Date(b.lock_time));
+  return openAll.length > 0 ? String(openAll[0].id) : "";
 }
 
 // All 2026 roster names in a flat Set for instant validation
@@ -900,11 +925,9 @@ const SEL_FIELDS=[
 function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=false,isAdmin=false}) {
   const [now]=useState(new Date());
   const [selectedMatchId,setSelectedMatchId]=useState(()=>{
-    const locked=matches.filter(m=>isMatchLocked(m,now));
-    // Also include near-future matches for admin
-    const upcoming=matches.filter(m=>{ const h=(new Date(m.lock_time)-now)/(1000*60*60); return h>0&&h<=48; });
-    const all=[...locked,...upcoming];
-    return all.length>0?String(all[all.length-1].id):"";
+    const n=new Date();
+    // Admin PlayerSelectionsTab: use live logic (most recent locked match today)
+    return isAdmin ? getDefaultLiveMatchId(matches, n) : getDefaultPicksMatchId(matches, n);
   });
   const [editingPlayer,setEditingPlayer]=useState(null);
   const [editForm,setEditForm]=useState({});
@@ -1121,8 +1144,7 @@ function AIInsightsTab({matches}) {
 function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScores}) {
   const [selectedMatchId, setSelectedMatchId] = useState(()=>{
     const now2=new Date();
-    const locked=matches.filter(m=>isMatchLocked(m,now2));
-    return locked.length>0?String(locked[locked.length-1].id):"";
+    return getDefaultLiveMatchId(matches, now2);
   });
   const [scores, setScores] = useState({});
   const [saving, setSaving] = useState(false);
@@ -1664,8 +1686,7 @@ function LiveGrid({matches, results, allSelections, playerScores}) {
   const [now] = useState(new Date());
   const lockedMatches = matches.filter(m => isMatchLocked(m, now));
   const [selectedMatchId, setSelectedMatchId] = useState(()=>{
-    const locked2=matches.filter(m=>isMatchLocked(m,now));
-    return locked2.length>0?String(locked2[locked2.length-1].id):"";
+    return getDefaultLiveMatchId(matches, now);
   });
 
   const m = lockedMatches.find(x => String(x.id) === String(selectedMatchId));

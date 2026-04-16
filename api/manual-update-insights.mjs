@@ -42,18 +42,26 @@ export default async (req) => {
       });
     }
 
-    console.log(`Processing ${upcomingToday.length} matches...`);
-    const results = [];
-
-    // Process up to 3 matches to stay within Vercel edge timeout limits
+    // Process sequentially with a hard time budget to avoid Vercel's 25s edge timeout.
+    // Each match takes ~8-22s; we bail early if running low on time.
     const toProcess = upcomingToday.slice(0, 3);
+    const results = [];
+    const startTime = Date.now();
+    const TIME_BUDGET_MS = 20000; // 20s hard limit — leaves 5s headroom
 
-    await Promise.all(toProcess.map(async (match) => {
-      console.log(`Manual generating for M${match.id}: ${match.home} vs ${match.away}`);
-      
+    for (const match of toProcess) {
+      const elapsed = Date.now() - startTime;
+      if (elapsed > TIME_BUDGET_MS) {
+        console.log(`⏱️ Time budget exhausted after ${Math.round(elapsed/1000)}s — deferring remaining matches`);
+        results.push({ matchId: match.id, teams: `${match.home} vs ${match.away}`, success: false, error: "Deferred: time budget exceeded" });
+        continue;
+      }
+
+      console.log(`Manual generating for M${match.id}: ${match.home} vs ${match.away} (${Math.round(elapsed/1000)}s elapsed)`);
+
       try {
         const result = await generateInsights(match.home, match.away, match.date, match.id);
-        const insights = result.insights || {}; 
+        const insights = result.insights || {};
 
         if (!result.success) {
           console.log(`Fallback triggered manually for M${match.id}: ${result.error}`);
@@ -78,7 +86,7 @@ export default async (req) => {
       } catch (e) {
         results.push({ matchId: match.id, teams: `${match.home} vs ${match.away}`, success: false, error: e.message });
       }
-    }));
+    }
 
     return new Response(JSON.stringify({ 
       processed: results.length, 

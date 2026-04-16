@@ -1732,63 +1732,51 @@ function LiveGrid({matches, results, allSelections, playerScores, user}) {
               }).filter(Boolean).sort((a,b)=>b.total - a.total).map((row, i) => {
                 const res = results[m.id];
                 const isExpanded = isAdmin && expandedRow === row.name;
-                // Admin pick details: each category with label, picked value, and correct indicator
-                const SEL_DETAIL = [
-                  { label: "Winner",    key: "winningTeam",   resKey: res?.winningTeam },
-                  { label: "Best Bat",  key: "bestBatsman",   resKey: res?.topScorers?.[0] },
-                  { label: "Best Bowl", key: "bestBowler",    resKey: res?.bestBowlers?.[0] },
-                  { label: "PP Win",    key: "powerplayWinner",resKey: res?.powerplayWinner },
-                  { label: "Dot Ball", key: "dotBallBowler",  resKey: res?.dotBallLeaders?.[0] },
-                  { label: "Wickets",  key: "totalWickets",   resKey: res?.wicketsRange },
-                  { label: "Duck",     key: "duckBatsman",    resKey: null },
-                  { label: "Double",   key: "doubleCategory", resKey: null },
-                  { label: "🏆 Horse", key: "winningHorse",   resKey: res?.matchTopPlayer },
-                  { label: "💀 Horse", key: "losingHorse",    resKey: res?.matchBottomPlayer },
-                ];
+
+                // Helper: renders score number + optional pick value below it
+                const Cell = ({ score, pick, resKey, style={} }) => {
+                  const hasResult = res && resKey !== null && resKey !== undefined;
+                  const correct = hasResult && pick && (pick === resKey || (Array.isArray(resKey) ? resKey.includes(pick) : false));
+                  const incorrect = hasResult && pick && !correct;
+                  return (
+                    <td style={{padding:"6px 4px",textAlign:"right",verticalAlign:"top",...style}}>
+                      <div style={{color:score>0?"#4ade80":"#64748b",fontWeight:score>0?600:400}}>{score||0}</div>
+                      {isExpanded && pick && (
+                        <div style={{fontSize:"10px",color:correct?"#4ade80":incorrect?"#f87171":"#94a3b8",marginTop:"2px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"80px",marginLeft:"auto"}}>
+                          {correct?"✓ ":incorrect?"✗ ":""}{pick}
+                        </div>
+                      )}
+                    </td>
+                  );
+                };
+
                 return (
-                  <Fragment key={row.name}>
-                    <tr style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)",cursor:isAdmin?"pointer":"default"}} onClick={()=>isAdmin&&setExpandedRow(isExpanded?null:row.name)}>
-                      <td style={{padding:"6px 10px",color:"#e8e0d0",fontWeight:"bold",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>
-                        {isAdmin && <span style={{fontSize:"10px",marginRight:"5px",color:"#475569"}}>{isExpanded?"▼":"▶"}</span>}
-                        {row.name}
-                      </td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.winningTeam>0?"#4ade80":"#64748b"}}>{row.bd.winningTeam||0}</td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.bestBatsman>0?"#4ade80":"#64748b"}}>{row.bd.bestBatsman||0}</td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.bestBowler>0?"#4ade80":"#64748b"}}>{row.bd.bestBowler||0}</td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.powerplayWinner>0?"#4ade80":"#64748b"}}>{row.bd.powerplayWinner||0}</td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.dotBallBowler>0?"#4ade80":"#64748b"}}>{row.bd.dotBallBowler||0}</td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.totalWickets>0?"#4ade80":"#64748b"}}>{row.bd.totalWickets||0}</td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.duckBatsman>0?"#4ade80":"#64748b"}}>{row.bd.duckBatsman||0}</td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:(row.bd.winningHorse||0)+(row.bd.losingHorse||0)>0?"#4ade80":"#64748b"}}>{(row.bd.winningHorse||0)+(row.bd.losingHorse||0)}</td>
-                      <td style={{padding:"6px 4px",textAlign:"right",color:"#fbbf24",fontWeight:"bold",fontSize:"14px"}}>{row.total}</td>
-                    </tr>
-                    {isExpanded && (
-                      <tr style={{background:"rgba(59,130,246,0.06)",borderBottom:"1px solid rgba(59,130,246,0.15)"}}>
-                        <td colSpan={10} style={{padding:"10px 14px"}}>
-                          <div style={{fontSize:"11px",color:"#60a5fa",fontWeight:700,marginBottom:"8px",textTransform:"uppercase",letterSpacing:"0.5px"}}>📋 {row.name}'s Selections</div>
-                          <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
-                            {SEL_DETAIL.map(({label, key, resKey}) => {
-                              const picked = row.sel[key];
-                              if (!picked) return null;
-                              const hasResult = res && resKey !== null && resKey !== undefined;
-                              const correct = hasResult && (picked === resKey || (Array.isArray(resKey) ? resKey.includes(picked) : false));
-                              const incorrect = hasResult && !correct;
-                              return (
-                                <div key={key} style={{background:correct?"rgba(74,222,128,0.1)":incorrect?"rgba(248,113,113,0.1)":"rgba(255,255,255,0.05)",border:`1px solid ${correct?"rgba(74,222,128,0.3)":incorrect?"rgba(248,113,113,0.3)":"rgba(255,255,255,0.08)"}`,borderRadius:"6px",padding:"4px 8px",display:"flex",flexDirection:"column",gap:"2px",minWidth:"90px"}}>
-                                  <span style={{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px"}}>{label}</span>
-                                  <span style={{fontSize:"11px",color:correct?"#4ade80":incorrect?"#f87171":"#e2e8f0",fontWeight:600}}>
-                                    {correct?"✓ ":incorrect?"✗ ":""}{picked}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
+                  <tr key={row.name} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)",cursor:isAdmin?"pointer":"default"}} onClick={()=>isAdmin&&setExpandedRow(isExpanded?null:row.name)}>
+                    <td style={{padding:"6px 10px",color:"#e8e0d0",fontWeight:"bold",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap",verticalAlign:"top"}}>
+                      {isAdmin && <span style={{fontSize:"10px",marginRight:"5px",color:"#475569"}}>{isExpanded?"▼":"▶"}</span>}
+                      {row.name}
+                    </td>
+                    <Cell score={row.bd.winningTeam}     pick={row.sel.winningTeam}    resKey={res?.winningTeam} />
+                    <Cell score={row.bd.bestBatsman}     pick={row.sel.bestBatsman}    resKey={res?.topScorers?.[0]} />
+                    <Cell score={row.bd.bestBowler}      pick={row.sel.bestBowler}     resKey={res?.bestBowlers?.[0]} />
+                    <Cell score={row.bd.powerplayWinner} pick={row.sel.powerplayWinner} resKey={res?.powerplayWinner} />
+                    <Cell score={row.bd.dotBallBowler}   pick={row.sel.dotBallBowler}  resKey={res?.dotBallLeaders?.[0]} />
+                    <Cell score={row.bd.totalWickets}    pick={row.sel.totalWickets}   resKey={res?.wicketsRange} />
+                    <Cell score={row.bd.duckBatsman}     pick={row.sel.duckBatsman}    resKey={null} />
+                    <td style={{padding:"6px 4px",textAlign:"right",verticalAlign:"top",color:(row.bd.winningHorse||0)+(row.bd.losingHorse||0)>0?"#4ade80":"#64748b"}}>
+                      <div>{(row.bd.winningHorse||0)+(row.bd.losingHorse||0)}</div>
+                      {isExpanded && (
+                        <div style={{fontSize:"10px",marginTop:"2px",textAlign:"right"}}>
+                          {row.sel.winningHorse && <div style={{color:res?.matchTopPlayer&&row.sel.winningHorse===res.matchTopPlayer?"#4ade80":res?.matchTopPlayer?"#f87171":"#94a3b8"}}>🏆 {row.sel.winningHorse}</div>}
+                          {row.sel.losingHorse  && <div style={{color:res?.matchBottomPlayer&&row.sel.losingHorse===res.matchBottomPlayer?"#4ade80":res?.matchBottomPlayer?"#f87171":"#94a3b8"}}>💀 {row.sel.losingHorse}</div>}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{padding:"6px 4px",textAlign:"right",color:"#fbbf24",fontWeight:"bold",fontSize:"14px",verticalAlign:"top"}}>{row.total}</td>
+                  </tr>
                 );
               })}
+
             </tbody>
           </table>
         </div>

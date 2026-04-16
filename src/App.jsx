@@ -1572,7 +1572,7 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
 }
 
 // ─── LIVE SCORE PAGE ──────────────────────────────────────────────────────────
-function LiveScorePage({matches, results, allSelections, playerScores, onSavePlayerScores}) {
+function LiveScorePage({matches, results, allSelections, playerScores, onSavePlayerScores, user}) {
   const [tab, setTab] = useState("grid");
   return (
     <div style={S.page}>
@@ -1585,7 +1585,7 @@ function LiveScorePage({matches, results, allSelections, playerScores, onSavePla
         <button style={S.navBtn(tab==="update")} onClick={()=>setTab("update")}>✏️ Update Player Stats</button>
       </div>
 
-      {tab==="grid" && <LiveGrid matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
+      {tab==="grid" && <LiveGrid matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} user={user} />}
       {tab==="dist" && <LiveDistributions matches={matches} allSelections={allSelections} />}
       {tab==="update" && <PlayerScoresTab matches={matches} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} />}
     </div>
@@ -1682,7 +1682,9 @@ function LiveDistributions({matches, allSelections}) {
   );
 }
 
-function LiveGrid({matches, results, allSelections, playerScores}) {
+function LiveGrid({matches, results, allSelections, playerScores, user}) {
+  const isAdmin = user?.isAdmin;
+  const [expandedRow, setExpandedRow] = useState(null);
   const [now] = useState(new Date());
   const lockedMatches = matches.filter(m => isMatchLocked(m, now));
   const [selectedMatchId, setSelectedMatchId] = useState(()=>{
@@ -1724,23 +1726,69 @@ function LiveGrid({matches, results, allSelections, playerScores}) {
               {FANTASY_PLAYERS.map((name) => {
                 const uname = name.toLowerCase().replace(/\s/g,"_");
                 const sel = allSelections[uname]?.[m.id];
-                if (!sel) return null; // Hide users without selections
+                if (!sel) return null;
                 const pts = calcPoints(sel, results[m.id], playerScores[m.id]||{});
-                return { name, bd: pts.breakdown, total: pts.total };
-              }).filter(Boolean).sort((a,b)=>b.total - a.total).map((row, i) => (
-                <tr key={row.name} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)"}}>
-                  <td style={{padding:"6px 10px",color:"#e8e0d0",fontWeight:"bold",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>{row.name}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.winningTeam>0?"#4ade80":"#64748b"}}>{row.bd.winningTeam||0}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.bestBatsman>0?"#4ade80":"#64748b"}}>{row.bd.bestBatsman||0}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.bestBowler>0?"#4ade80":"#64748b"}}>{row.bd.bestBowler||0}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.powerplayWinner>0?"#4ade80":"#64748b"}}>{row.bd.powerplayWinner||0}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.dotBallBowler>0?"#4ade80":"#64748b"}}>{row.bd.dotBallBowler||0}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.totalWickets>0?"#4ade80":"#64748b"}}>{row.bd.totalWickets||0}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.duckBatsman>0?"#4ade80":"#64748b"}}>{row.bd.duckBatsman||0}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:(row.bd.winningHorse||0)+(row.bd.losingHorse||0)>0?"#4ade80":"#64748b"}}>{(row.bd.winningHorse||0)+(row.bd.losingHorse||0)}</td>
-                  <td style={{padding:"6px 4px",textAlign:"right",color:"#fbbf24",fontWeight:"bold",fontSize:"14px"}}>{row.total}</td>
-                </tr>
-              ))}
+                return { name, uname, sel, bd: pts.breakdown, total: pts.total };
+              }).filter(Boolean).sort((a,b)=>b.total - a.total).map((row, i) => {
+                const res = results[m.id];
+                const isExpanded = isAdmin && expandedRow === row.name;
+                // Admin pick details: each category with label, picked value, and correct indicator
+                const SEL_DETAIL = [
+                  { label: "Winner",    key: "winningTeam",   resKey: res?.winningTeam },
+                  { label: "Best Bat",  key: "bestBatsman",   resKey: res?.topScorers?.[0] },
+                  { label: "Best Bowl", key: "bestBowler",    resKey: res?.bestBowlers?.[0] },
+                  { label: "PP Win",    key: "powerplayWinner",resKey: res?.powerplayWinner },
+                  { label: "Dot Ball", key: "dotBallBowler",  resKey: res?.dotBallLeaders?.[0] },
+                  { label: "Wickets",  key: "totalWickets",   resKey: res?.wicketsRange },
+                  { label: "Duck",     key: "duckBatsman",    resKey: null },
+                  { label: "Double",   key: "doubleCategory", resKey: null },
+                  { label: "🏆 Horse", key: "winningHorse",   resKey: res?.matchTopPlayer },
+                  { label: "💀 Horse", key: "losingHorse",    resKey: res?.matchBottomPlayer },
+                ];
+                return (
+                  <React.Fragment key={row.name}>
+                    <tr style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)",cursor:isAdmin?"pointer":"default"}} onClick={()=>isAdmin&&setExpandedRow(isExpanded?null:row.name)}>
+                      <td style={{padding:"6px 10px",color:"#e8e0d0",fontWeight:"bold",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>
+                        {isAdmin && <span style={{fontSize:"10px",marginRight:"5px",color:"#475569"}}>{isExpanded?"▼":"▶"}</span>}
+                        {row.name}
+                      </td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.winningTeam>0?"#4ade80":"#64748b"}}>{row.bd.winningTeam||0}</td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.bestBatsman>0?"#4ade80":"#64748b"}}>{row.bd.bestBatsman||0}</td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.bestBowler>0?"#4ade80":"#64748b"}}>{row.bd.bestBowler||0}</td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.powerplayWinner>0?"#4ade80":"#64748b"}}>{row.bd.powerplayWinner||0}</td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.dotBallBowler>0?"#4ade80":"#64748b"}}>{row.bd.dotBallBowler||0}</td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.totalWickets>0?"#4ade80":"#64748b"}}>{row.bd.totalWickets||0}</td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:row.bd.duckBatsman>0?"#4ade80":"#64748b"}}>{row.bd.duckBatsman||0}</td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:(row.bd.winningHorse||0)+(row.bd.losingHorse||0)>0?"#4ade80":"#64748b"}}>{(row.bd.winningHorse||0)+(row.bd.losingHorse||0)}</td>
+                      <td style={{padding:"6px 4px",textAlign:"right",color:"#fbbf24",fontWeight:"bold",fontSize:"14px"}}>{row.total}</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr style={{background:"rgba(59,130,246,0.06)",borderBottom:"1px solid rgba(59,130,246,0.15)"}}>
+                        <td colSpan={10} style={{padding:"10px 14px"}}>
+                          <div style={{fontSize:"11px",color:"#60a5fa",fontWeight:700,marginBottom:"8px",textTransform:"uppercase",letterSpacing:"0.5px"}}>📋 {row.name}'s Selections</div>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+                            {SEL_DETAIL.map(({label, key, resKey}) => {
+                              const picked = row.sel[key];
+                              if (!picked) return null;
+                              const hasResult = res && resKey !== null && resKey !== undefined;
+                              const correct = hasResult && (picked === resKey || (Array.isArray(resKey) ? resKey.includes(picked) : false));
+                              const incorrect = hasResult && !correct;
+                              return (
+                                <div key={key} style={{background:correct?"rgba(74,222,128,0.1)":incorrect?"rgba(248,113,113,0.1)":"rgba(255,255,255,0.05)",border:`1px solid ${correct?"rgba(74,222,128,0.3)":incorrect?"rgba(248,113,113,0.3)":"rgba(255,255,255,0.08)"}`,borderRadius:"6px",padding:"4px 8px",display:"flex",flexDirection:"column",gap:"2px",minWidth:"90px"}}>
+                                  <span style={{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px"}}>{label}</span>
+                                  <span style={{fontSize:"11px",color:correct?"#4ade80":incorrect?"#f87171":"#e2e8f0",fontWeight:600}}>
+                                    {correct?"✓ ":incorrect?"✗ ":""}{picked}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1965,7 +2013,7 @@ export default function App() {
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
           :page==="leaderboard"?<LeaderboardPage user={user} matches={matches} results={results} allSelections={allSelections} userSel={userSel} playerScores={playerScores}/>
           :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true} isAdmin={user.isAdmin}/></div>
-          :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
+          :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} user={user}/>
           :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :null
         }

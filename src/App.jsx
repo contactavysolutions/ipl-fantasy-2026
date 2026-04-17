@@ -1003,8 +1003,9 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
   const [now]=useState(new Date());
   const [selectedMatchId,setSelectedMatchId]=useState(()=>{
     const n=new Date();
-    // Admin PlayerSelectionsTab: use live logic (most recent locked match today)
-    return isAdmin ? getDefaultLiveMatchId(matches, n) : getDefaultPicksMatchId(matches, n);
+    // Always use live logic — the dropdown only shows locked matches,
+    // so getDefaultPicksMatchId (returns open/upcoming match) would never match an option.
+    return getDefaultLiveMatchId(matches, n);
   });
   const [editingPlayer,setEditingPlayer]=useState(null);
   const [editForm,setEditForm]=useState({});

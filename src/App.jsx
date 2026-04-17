@@ -709,10 +709,48 @@ function MyStatsContent({user,matches,results,userSel,playerScores}) {
 }
 
 // ─── CONSOLIDATED SCORE ───────────────────────────────────────────────────────
+// Pre-app scores: totals for M1–M16 before the app was launched
+const PRE_APP_SCORES = {
+  "Krishna":       4806,
+  "Naresh":        4584,
+  "Navdeep":       4327,
+  "Mahesh":        4063,
+  "Srikanth B":    4052,
+  "Prashanth":     4013,
+  "Sandeep":       3974,
+  "Ganga":         3935,
+  "Ani":           3909,
+  "Peddi":         3668,
+  "Ranga":         3651,
+  "Ranjith":       3631,
+  "Praveen":       3629,
+  "Naren":         3552,
+  "Omkar":         3494,
+  "Soma":          3483,
+  "Haren":         3452,
+  "Raghav":        3440,
+  "Rohit":         3280,
+  "Sreeram":       3234,
+  "Santhosh Male": 3164,
+  "Sridhar K":     3054,
+  "Santhosh":      2934,
+  "Nag":           2931,
+  "Jitendar":      2900,
+};
+
 function ConsolidatedScoreContent({matches, results, allSelections, playerScores}) {
   const now = new Date();
   const activeMatches = matches.filter(m => isMatchLocked(m, now));
-  
+
+  // Sort state: { col: "player"|"total"|matchId, dir: "asc"|"desc" }
+  const [sort, setSort] = useState({ col: "total", dir: "desc" });
+
+  const toggleSort = (col) => {
+    setSort(prev => prev.col === col ? { col, dir: prev.dir === "desc" ? "asc" : "desc" } : { col, dir: col === "player" ? "asc" : "desc" });
+  };
+
+  const sortIcon = (col) => sort.col === col ? (sort.dir === "desc" ? " ▼" : " ▲") : " ↕";
+
   const ptsGrid = {};
   FANTASY_PLAYERS.forEach(p => ptsGrid[p] = {});
   activeMatches.forEach(m => {
@@ -725,7 +763,9 @@ function ConsolidatedScoreContent({matches, results, allSelections, playerScores
 
   const totalPts = {};
   FANTASY_PLAYERS.forEach(p => {
-    totalPts[p] = activeMatches.reduce((sum, m) => sum + (ptsGrid[p][m.id]||0), 0);
+    const preApp = PRE_APP_SCORES[p] || 0;
+    const inApp = activeMatches.reduce((sum, m) => sum + (ptsGrid[p][m.id]||0), 0);
+    totalPts[p] = preApp + inApp;
   });
 
   const rankGrid = {};
@@ -739,9 +779,7 @@ function ConsolidatedScoreContent({matches, results, allSelections, playerScores
 
     let currentRank = 1;
     mScores.forEach((s, idx) => {
-      if (idx > 0 && s.pts < mScores[idx-1].pts) {
-        currentRank = idx + 1; 
-      }
+      if (idx > 0 && s.pts < mScores[idx-1].pts) { currentRank = idx + 1; }
       rankGrid[s.player][m.id] = currentRank;
     });
 
@@ -751,11 +789,8 @@ function ConsolidatedScoreContent({matches, results, allSelections, playerScores
       let secondGroup = [];
       if (firstGroup.length === 1 && mScores.length > 1) {
         const secondPlacePts = mScores[1].pts;
-        if (secondPlacePts > 0) {
-          secondGroup = mScores.filter(s => s.pts === secondPlacePts);
-        }
+        if (secondPlacePts > 0) secondGroup = mScores.filter(s => s.pts === secondPlacePts);
       }
-      
       if (firstGroup.length === 2) {
         firstGroup.forEach(s => winningsGrid[s.player][m.id] = 18.5);
       } else if (firstGroup.length > 2) {
@@ -769,31 +804,71 @@ function ConsolidatedScoreContent({matches, results, allSelections, playerScores
         }
       }
     }
-    
     FANTASY_PLAYERS.forEach(p => {
       totalWinnings[p] = Number((totalWinnings[p] + (winningsGrid[p][m.id] || 0)).toFixed(2));
     });
   });
 
-  const renderTable = (title, rowFormatter, totals, totalTitle) => (
+  // Sorted player list used by all three tables
+  const sortedPlayers = [...FANTASY_PLAYERS].sort((a, b) => {
+    let va, vb;
+    if (sort.col === "player")       { va = a.toLowerCase(); vb = b.toLowerCase(); }
+    else if (sort.col === "total")   { va = totalPts[a]; vb = totalPts[b]; }
+    else if (sort.col === "totalW")  { va = totalWinnings[a]; vb = totalWinnings[b]; }
+    else { va = ptsGrid[a][sort.col]||0; vb = ptsGrid[b][sort.col]||0; }
+    if (va < vb) return sort.dir === "asc" ? -1 : 1;
+    if (va > vb) return sort.dir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const thStyle = (col) => ({
+    padding:"10px 8px", fontWeight:600, textAlign:"right", cursor:"pointer",
+    color: sort.col === col ? "#fbbf24" : "#64748b",
+    whiteSpace:"nowrap", minWidth:"45px", userSelect:"none",
+    background: sort.col === col ? "rgba(251,191,36,0.05)" : "transparent",
+  });
+  const thStyleL = (col) => ({
+    padding:"10px", fontWeight:600, textAlign:"left", cursor:"pointer",
+    color: sort.col === col ? "#fbbf24" : "#888",
+    position:"sticky", left:0, background:"#0d1117", zIndex:2, userSelect:"none",
+  });
+  const thStyleTotal = (col, label) => ({
+    padding:"10px", fontWeight:700, textAlign:"right", cursor:"pointer",
+    color: sort.col === col ? "#facc15" : "#fbbf24",
+    minWidth:"60px", borderRight:"1px solid rgba(255,255,255,0.05)",
+    userSelect:"none", whiteSpace:"nowrap",
+    background: sort.col === col ? "rgba(251,191,36,0.08)" : "transparent",
+  });
+
+  const renderTable = (title, rowFormatter, totals, totalCol, totalLabel, preAppValue) => (
     <div style={{marginBottom:"40px"}}>
       <h3 style={{color:"#e8e0d0",fontSize:"16px",marginBottom:"12px"}}>{title}</h3>
       <div style={{...S.card,padding:"0",overflowX:"auto"}}>
         <table style={{borderCollapse:"collapse",fontSize:"12px",whiteSpace:"nowrap",minWidth:"100%"}}>
           <thead>
             <tr style={{background:"rgba(255,255,255,0.03)",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
-              <th style={{padding:"10px",color:"#888",fontWeight:600,textAlign:"left",position:"sticky",left:0,background:"#0d1117",zIndex:2}}>Player</th>
-              {totalTitle && <th style={{padding:"10px",color:"#fbbf24",fontWeight:700,textAlign:"right",minWidth:"60px",borderRight:"1px solid rgba(255,255,255,0.05)"}}>{totalTitle}</th>}
+              <th style={thStyleL("player")} onClick={()=>toggleSort("player")}>Player{sortIcon("player")}</th>
+              {totalLabel && <th style={thStyleTotal(totalCol)} onClick={()=>toggleSort(totalCol)}>{totalLabel}{sortIcon(totalCol)}</th>}
+              <th style={{...thStyle("preapp"),color:"#a78bfa",fontWeight:700,minWidth:"55px"}} title="Pre-app total: Matches 1–16">M16*</th>
               {activeMatches.map(m => (
-                <th key={m.id} style={{padding:"10px 8px",color:"#64748b",fontWeight:500,minWidth:"45px",textAlign:"center"}}>M{String(m.id).padStart(2,'0')}</th>
+                <th key={m.id} style={thStyle(m.id)} onClick={()=>toggleSort(m.id)}>
+                  M{String(m.id).padStart(2,'0')}{sortIcon(m.id)}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {FANTASY_PLAYERS.map((p,i) => (
+            {sortedPlayers.map((p,i) => (
               <tr key={p} style={{borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
                 <td style={{padding:"8px 10px",fontWeight:600,color:"#e2e8f0",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1}}>{p}</td>
-                {totalTitle && <td style={{padding:"8px 10px",fontWeight:800,color:"#fbbf24",textAlign:"right",borderRight:"1px solid rgba(255,255,255,0.05)"}}>{totalTitle==="Total $"?"$":""}{totals[p]}</td>}
+                {totalLabel && (
+                  <td style={{padding:"8px 10px",fontWeight:800,color:"#fbbf24",textAlign:"right",borderRight:"1px solid rgba(255,255,255,0.05)"}}>
+                    {totalLabel==="Total $" ? "$" : ""}{totals[p]}
+                  </td>
+                )}
+                <td style={{padding:"8px",textAlign:"center",color:"#a78bfa",fontWeight:600,background:i%2===0?"rgba(167,139,250,0.04)":"rgba(167,139,250,0.06)"}}>
+                  {preAppValue ? preAppValue(p) : "-"}
+                </td>
                 {activeMatches.map(m => {
                   const val = rowFormatter(p, m.id);
                   const isZero = val === 0 || val === "-" || val === "$0";
@@ -808,17 +883,19 @@ function ConsolidatedScoreContent({matches, results, allSelections, playerScores
           </tbody>
         </table>
       </div>
+      {totalLabel === "Total Pts" && <p style={{fontSize:"11px",color:"#475569",marginTop:"6px"}}>* M16 shows the cumulative score from Matches 1–16, tracked before the app launched.</p>}
     </div>
   );
 
   return (
     <div>
-       {renderTable("Match-by-Match Points", (p,mid) => ptsGrid[p][mid] || 0, totalPts, "Total Pts")}
-       {renderTable("Match-by-Match Winnings", (p,mid) => winningsGrid[p][mid] ? `$${winningsGrid[p][mid]}` : "-", totalWinnings, "Total $")}
-       {renderTable("Match-by-Match Ranks", (p,mid) => rankGrid[p][mid] || "-", null, null)}
+      {renderTable("Match-by-Match Points",   (p,mid) => ptsGrid[p][mid] || 0,                              totalPts,      "total",  "Total Pts", (p) => PRE_APP_SCORES[p] || 0)}
+      {renderTable("Match-by-Match Winnings", (p,mid) => winningsGrid[p][mid] ? `$${winningsGrid[p][mid]}` : "-", totalWinnings, "totalW", "Total $",  null)}
+      {renderTable("Match-by-Match Ranks",    (p,mid) => rankGrid[p][mid] || "-",                            null,          null,     null,       null)}
     </div>
   );
 }
+
 
 // ─── UNIFIED LEADERBOARD PAGE ─────────────────────────────────────────────────
 function LeaderboardPage({user, matches, results, allSelections, userSel, playerScores}) {

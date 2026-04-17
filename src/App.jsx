@@ -1073,6 +1073,7 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
               <thead>
                 <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.03)"}}>
                   <th style={{padding:"10px 12px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase",position:"sticky",left:0,background:"#0d1117",zIndex:2,minWidth:"110px"}}>Player</th>
+                  <th style={{padding:"10px 8px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"10px",letterSpacing:"0.5px",textTransform:"uppercase",whiteSpace:"nowrap"}}>Last Updated</th>
                   {SEL_FIELDS.map(f=><th key={f.key} style={{padding:"10px 8px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"10px",letterSpacing:"0.5px",textTransform:"uppercase",whiteSpace:"nowrap"}}>{f.label}</th>)}
                   {!readOnly && <th style={{padding:"10px 8px",textAlign:"center",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase",minWidth:"100px"}}>Actions</th>}
                 </tr>
@@ -1087,6 +1088,20 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
                     <tr key={name} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)",opacity:!hasSel&&!isEditing?0.5:1}}>
                       <td style={{padding:"8px 12px",color:hasSel?"#e8e0d0":"#555",fontWeight:"bold",fontSize:"12px",position:"sticky",left:0,background:i%2===0?"#0d1117":"#0f1319",zIndex:1,whiteSpace:"nowrap"}}>
                         {name}{hasSel&&<span style={{color:"#00c864",marginLeft:"4px",fontSize:"10px"}}>✓</span>}
+                      </td>
+                      <td style={{padding:"6px 8px",whiteSpace:"nowrap",fontSize:"11px",color:"#64748b"}}>
+                        {hasSel && sel.updatedAt ? (()=>{
+                          const ts = new Date(sel.updatedAt);
+                          const lock = m?.lock_time ? new Date(m.lock_time) : null;
+                          const afterLock = lock && ts > lock;
+                          const fmt = ts.toLocaleString("en-IN",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:true});
+                          return (
+                            <span style={{display:"flex",flexDirection:"column",gap:"2px"}}>
+                              <span style={{color:afterLock?"#f87171":"#94a3b8"}}>{fmt}</span>
+                              {afterLock && <span style={{color:"#ef4444",fontSize:"9px",fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase"}}>⚠ After Lock!</span>}
+                            </span>
+                          );
+                        })() : <span style={{color:"#374151"}}>—</span>}
                       </td>
                       {SEL_FIELDS.map(f=>{
                         const matchLocked = isMatchLocked(m, now);
@@ -1896,7 +1911,7 @@ export default function App() {
       const selMap={};
       (selData||[]).forEach(s=>{
         if(!selMap[s.username]) selMap[s.username]={};
-        selMap[s.username][s.match_id]={winningTeam:s.winning_team,bestBatsman:s.best_batsman,bestBowler:s.best_bowler,powerplayWinner:s.powerplay_winner,dotBallBowler:s.dot_ball_bowler,totalWickets:s.total_wickets,duckBatsman:s.duck_batsman,doubleCategory:s.double_category,winningHorse:s.winning_horse,losingHorse:s.losing_horse};
+        selMap[s.username][s.match_id]={winningTeam:s.winning_team,bestBatsman:s.best_batsman,bestBowler:s.best_bowler,powerplayWinner:s.powerplay_winner,dotBallBowler:s.dot_ball_bowler,totalWickets:s.total_wickets,duckBatsman:s.duck_batsman,doubleCategory:s.double_category,winningHorse:s.winning_horse,losingHorse:s.losing_horse,updatedAt:s.updated_at||s.created_at||null};
       });
       setAllSelections(selMap);
       const iMap={};

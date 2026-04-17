@@ -1094,7 +1094,7 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
                           const ts = new Date(sel.updatedAt);
                           const lock = m?.lock_time ? new Date(m.lock_time) : null;
                           const afterLock = lock && ts > lock;
-                          const fmt = ts.toLocaleString("en-IN",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:true});
+                          const fmt = ts.toLocaleString("en-US",{timeZone:"America/New_York",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:true}) + " ET";
                           return (
                             <span style={{display:"flex",flexDirection:"column",gap:"2px"}}>
                               <span style={{color:afterLock?"#f87171":"#94a3b8"}}>{fmt}</span>

@@ -483,7 +483,14 @@ function SelectionForm({match,user,onBack,results,userSel,onSave,insights,player
   const st=getStatus(match,now,results,userSel);
 
   const handleSave=async()=>{
-    if(locked) return;
+    // Always re-check lock status at save time — not the stale render-time value.
+    // This catches the case where the page was open before lock but the match has since started.
+    // Respects admin is_locked=false override via isMatchLocked().
+    if(isMatchLocked(match, new Date())) {
+      setMsg("⛔ Match is locked — selections cannot be saved after match start time.");
+      setTimeout(()=>setMsg(""),5000);
+      return;
+    }
     setSaving(true);
     await onSave(match.id,sel);
     setSaved(true); setMsg("Selections saved! ✓");

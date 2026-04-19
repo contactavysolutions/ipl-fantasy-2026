@@ -600,8 +600,9 @@ function LeaderboardContent({matches,results,allSelections,playerScores}) {
   const scores=FANTASY_PLAYERS.map(name=>{
     const uname=name.toLowerCase().replace(/\s/g,"_");
     const uSel=allSelections[uname]||{};
-    let total=0,matchCount=0;
-    activeMatches.forEach(m=>{if(uSel[m.id]){total+=calcPoints(uSel[m.id],results[m.id],playerScores[m.id]).total;matchCount++;}});
+    let inAppTotal=0,matchCount=0;
+    activeMatches.forEach(m=>{if(uSel[m.id]){inAppTotal+=calcPoints(uSel[m.id],results[m.id],playerScores[m.id]).total;matchCount++;}});
+    const total = (PRE_APP_SCORES[name]||0) + inAppTotal;
     const badge = getStreakBadge(results, uSel, matches, now);
     return {name,total,matchCount,badge};
   }).sort((a,b)=>b.total-a.total);

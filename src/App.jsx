@@ -723,7 +723,7 @@ function LeaderboardContent({matches,results,allSelections,playerScores}) {
 }
 
 // ─── MY STATS ─────────────────────────────────────────────────────────────────
-function MyStatsContent({user,matches,results,userSel,playerScores}) {
+function MyStatsContent({user,matches,results,userSel,playerScores,allSelections}) {
   const now = new Date();
   const activeMatches = matches.filter(m => isMatchLocked(m, now) && userSel[m.id]);
   const inAppTotal = activeMatches.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id],playerScores[m.id]).total,0);
@@ -806,6 +806,15 @@ function MyStatsContent({user,matches,results,userSel,playerScores}) {
         ?<div style={{...S.card,textAlign:"center",color:"#475569",padding:"48px"}}>No in-app matches yet. Make your selections!</div>
         :activeMatches.map(m=>{
           const {breakdown,total}=calcPoints(userSel[m.id],results[m.id],playerScores[m.id]);
+          let myRank = null;
+          if (allSelections) {
+            const scoresForMatch = FANTASY_PLAYERS.map(p => {
+              const uSel = allSelections[p.toLowerCase().replace(/\s/g,"_")] || {};
+              return { name: p, score: calcPoints(uSel[m.id], results[m.id], playerScores[m.id]).total };
+            }).sort((a,b)=>b.score-a.score);
+            const myRankIndex = scoresForMatch.findIndex(x => x.name === user.displayName);
+            if (myRankIndex !== -1) myRank = myRankIndex + 1;
+          }
           return (
             <div key={m.id} style={{...S.card,marginBottom:"10px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",flexWrap:"wrap",gap:"8px"}}>
@@ -817,7 +826,10 @@ function MyStatsContent({user,matches,results,userSel,playerScores}) {
                   <TeamLogo team={m.away} size={36}/>
                   <span style={{fontSize:"15px",fontWeight:700,color:"#f8fafc"}}>{m.away}</span>
                 </div>
-                <div style={{fontSize:"22px",fontWeight:900,color:"#fbbf24",letterSpacing:"-0.5px"}}>{total} pts</div>
+                <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+                  {myRank && <div style={{background:"rgba(255,255,255,0.05)",padding:"4px 8px",borderRadius:"6px",fontSize:"12px",color:"#cbd5e1",fontWeight:700}}>🏅 Rank #{myRank}</div>}
+                  <div style={{fontSize:"22px",fontWeight:900,color:"#fbbf24",letterSpacing:"-0.5px"}}>{total} pts</div>
+                </div>
               </div>
               <div style={{display:"flex",flexWrap:"wrap",gap:"5px"}}>
                 {Object.entries(breakdown).filter(([k])=>!k.startsWith("_")).map(([k,v])=>(
@@ -1051,6 +1063,94 @@ function ConsolidatedScoreContent({matches, results, allSelections, playerScores
   );
 }
 
+// ─── HEAD-TO-HEAD COMPONENT ───────────────────────────────────────────────────
+function HeadToHeadContent({matches, results, allSelections, playerScores}) {
+  const [p1, setP1] = useState(FANTASY_PLAYERS[0]);
+  const [p2, setP2] = useState(FANTASY_PLAYERS[1]);
+
+  const now = new Date();
+  const activeMatches = matches.filter(m => isMatchLocked(m, now) && m.id > 16);
+
+  // Calculate scores
+  const score1 = PRE_APP_SCORES[p1] || 0;
+  const score2 = PRE_APP_SCORES[p2] || 0;
+  
+  let inApp1 = 0, inApp2 = 0;
+  activeMatches.forEach(m => {
+    const s1 = allSelections[p1.toLowerCase().replace(/\s/g,"_")]?.[m.id];
+    const s2 = allSelections[p2.toLowerCase().replace(/\s/g,"_")]?.[m.id];
+    if(s1) inApp1 += calcPoints(s1, results[m.id], playerScores[m.id]).total;
+    if(s2) inApp2 += calcPoints(s2, results[m.id], playerScores[m.id]).total;
+  });
+
+  const total1 = score1 + inApp1;
+  const total2 = score2 + inApp2;
+
+  const getAccuracy = (pName, key, resKey) => {
+    let corr=0, tot=0;
+    activeMatches.forEach(m => {
+       const res = results[m.id];
+       if(!res) return;
+       const pick = allSelections[pName.toLowerCase().replace(/\s/g,"_")]?.[m.id]?.[key];
+       if(!pick) return;
+       tot++;
+       const answer = resKey(res);
+       const hit = Array.isArray(answer) ? answer.includes(pick) : pick === answer;
+       if(hit) corr++;
+    });
+    return tot > 0 ? Math.round((corr/tot)*100) : 0;
+  };
+
+  const cats = [
+    {label:"Winning Team", key:"winningTeam", resKey:(r)=>r?.winningTeam},
+    {label:"Best Batsman", key:"bestBatsman", resKey:(r)=>(r?.topScorers||[])[0]},
+    {label:"Best Bowler", key:"bestBowler", resKey:(r)=>(r?.bestBowlers||[])[0]},
+    {label:"PP Winner", key:"powerplayWinner", resKey:(r)=>r?.powerplayWinner},
+    {label:"Wickets Range", key:"totalWickets", resKey:(r)=>r?.wicketsRange},
+  ];
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:"20px",marginBottom:"30px",alignItems:"center",justifyContent:"center",flexWrap:"wrap"}}>
+        <select value={p1} onChange={e=>setP1(e.target.value)} style={{...S.input,width:"160px",textAlign:"center",fontWeight:700,color:"#fff"}}>
+          {FANTASY_PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
+        </select>
+        <span style={{fontSize:"24px",fontWeight:900,color:"#fbbf24",textShadow:"0 0 10px rgba(251,191,36,0.3)"}}>VS</span>
+        <select value={p2} onChange={e=>setP2(e.target.value)} style={{...S.input,width:"160px",textAlign:"center",fontWeight:700,color:"#fff"}}>
+          {FANTASY_PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 20px 1fr",gap:"16px",alignItems:"center",marginBottom:"30px",textAlign:"center"}}>
+        <div style={{...S.card, borderColor: total1 >= total2 ? "rgba(74,222,128,0.3)" : "rgba(255,255,255,0.05)", background: total1 >= total2 ? "rgba(74,222,128,0.05)" : S.card.background}}>
+          <div style={{fontSize:"36px",fontWeight:900,color:total1 >= total2 ? "#4ade80" : "#f8fafc"}}>{total1.toLocaleString()}</div>
+          <div style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",marginTop:"4px"}}>Total Points</div>
+        </div>
+        <div></div>
+        <div style={{...S.card, borderColor: total2 >= total1 ? "rgba(74,222,128,0.3)" : "rgba(255,255,255,0.05)", background: total2 >= total1 ? "rgba(74,222,128,0.05)" : S.card.background}}>
+          <div style={{fontSize:"36px",fontWeight:900,color:total2 >= total1 ? "#4ade80" : "#f8fafc"}}>{total2.toLocaleString()}</div>
+          <div style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",marginTop:"4px"}}>Total Points</div>
+        </div>
+      </div>
+
+      <div style={S.card}>
+        <div style={{fontSize:"14px",fontWeight:800,marginBottom:"20px",color:"#f8fafc",textAlign:"center",textTransform:"uppercase",letterSpacing:"1px"}}>🎯 Category Accuracy Breakdown</div>
+        {cats.map(c => {
+          const a1 = getAccuracy(p1, c.key, c.resKey);
+          const a2 = getAccuracy(p2, c.key, c.resKey);
+          return (
+            <div key={c.key} style={{display:"grid",gridTemplateColumns:"1fr 140px 1fr",gap:"10px",textAlign:"center",padding:"12px 0",borderBottom:"1px solid rgba(255,255,255,0.05)",alignItems:"center"}}>
+              <div style={{color: a1 >= a2 && a1 > 0 ? "#4ade80" : "#94a3b8", fontWeight:a1>=a2 && a1 > 0 ? 800 : 500, fontSize:"16px"}}>{a1}%</div>
+              <div style={{fontSize:"11px",textTransform:"uppercase",letterSpacing:"0.5px",color:"#64748b",fontWeight:700}}>{c.label}</div>
+              <div style={{color: a2 >= a1 && a2 > 0 ? "#4ade80" : "#94a3b8", fontWeight:a2>=a1 && a2 > 0 ? 800 : 500, fontSize:"16px"}}>{a2}%</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  );
+}
+
 
 // ─── UNIFIED LEADERBOARD PAGE ─────────────────────────────────────────────────
 function LeaderboardPage({user, matches, results, allSelections, userSel, playerScores}) {
@@ -1064,11 +1164,13 @@ function LeaderboardPage({user, matches, results, allSelections, userSel, player
         <button style={S.navBtn(tab==="board")} onClick={()=>setTab("board")}>🏆 Overall Leaderboard</button>
         <button style={S.navBtn(tab==="consolidated")} onClick={()=>setTab("consolidated")}>📈 Consolidated Score</button>
         <button style={S.navBtn(tab==="stats")} onClick={()=>setTab("stats")}>📊 My Performance</button>
+        <button style={S.navBtn(tab==="h2h")} onClick={()=>setTab("h2h")}>⚔️ Head-to-Head</button>
       </div>
 
       {tab === "board" && <LeaderboardContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
       {tab === "consolidated" && <ConsolidatedScoreContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
-      {tab === "stats" && <MyStatsContent user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores} />}
+      {tab === "stats" && <MyStatsContent user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores} allSelections={allSelections} />}
+      {tab === "h2h" && <HeadToHeadContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
     </div>
   );
 }

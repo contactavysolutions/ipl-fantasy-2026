@@ -1257,7 +1257,7 @@ const SEL_FIELDS=[
 ];
 
 function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=false,isAdmin=false}) {
-  const [now]=useState(new Date());
+  const now=useNowTick(30000);
   const [selectedMatchId,setSelectedMatchId]=useState(()=>{
     const n=new Date();
     // Always use live logic — the dropdown only shows locked matches,

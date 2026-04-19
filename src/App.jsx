@@ -863,6 +863,35 @@ const PRE_APP_SCORES = {
   "Jitendar":      2900,
 };
 
+// Pre-app winnings: totals for M1–M16 before the app was launched
+const PRE_APP_WINNINGS = {
+  "Krishna":       61,
+  "Mahesh":        50,
+  "Naren":         50,
+  "Naresh":        49,
+  "Soma":          37,
+  "Prashanth":     37,
+  "Ranjith":       37,
+  "Haren":         25,
+  "Navdeep":       25,
+  "Raghav":        25,
+  "Santhosh":      25,
+  "Ganga":         24,
+  "Ani":           12,
+  "Nag":           12,
+  "Omkar":         12,
+  "Jitendar":      0,
+  "Peddi":         0,
+  "Praveen":       0,
+  "Ranga":         0,
+  "Rohit":         0,
+  "Sandeep":       0,
+  "Sridhar K":     0,
+  "Srikanth B":    0,
+  "Sreeram":       0,
+  "Santhosh Male": 0,
+};
+
 function ConsolidatedScoreContent({matches, results, allSelections, playerScores}) {
   const now = new Date();
   // Only show M17+ — M01-M16 are pre-app and already rolled into the M16* column
@@ -897,7 +926,7 @@ function ConsolidatedScoreContent({matches, results, allSelections, playerScores
   const rankGrid = {};
   const winningsGrid = {};
   const totalWinnings = {};
-  FANTASY_PLAYERS.forEach(p => { rankGrid[p] = {}; winningsGrid[p] = {}; totalWinnings[p] = 0; });
+  FANTASY_PLAYERS.forEach(p => { rankGrid[p] = {}; winningsGrid[p] = {}; totalWinnings[p] = PRE_APP_WINNINGS[p] || 0; });
 
   activeMatches.forEach(m => {
     const mScores = FANTASY_PLAYERS.map(p => ({ player: p, pts: ptsGrid[p][m.id] }));
@@ -1016,7 +1045,7 @@ function ConsolidatedScoreContent({matches, results, allSelections, playerScores
   return (
     <div>
       {renderTable("Match-by-Match Points",   (p,mid) => ptsGrid[p][mid] || 0,                              totalPts,      "total",  "Total Pts", (p) => PRE_APP_SCORES[p] || 0)}
-      {renderTable("Match-by-Match Winnings", (p,mid) => winningsGrid[p][mid] ? `$${winningsGrid[p][mid]}` : "-", totalWinnings, "totalW", "Total $",  null)}
+      {renderTable("Match-by-Match Winnings", (p,mid) => winningsGrid[p][mid] ? `$${winningsGrid[p][mid]}` : "-", totalWinnings, "totalW", "Total $",  (p) => PRE_APP_WINNINGS[p] > 0 ? `$${PRE_APP_WINNINGS[p]}` : "-")}
       {renderTable("Match-by-Match Ranks",    (p,mid) => rankGrid[p][mid] || "-",                            null,          null,     null,       null)}
     </div>
   );

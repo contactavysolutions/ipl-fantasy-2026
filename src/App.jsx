@@ -668,11 +668,13 @@ function LeaderboardContent({matches,results,allSelections,playerScores}) {
 function MyStatsContent({user,matches,results,userSel,playerScores}) {
   const now = new Date();
   const activeMatches = matches.filter(m => isMatchLocked(m, now) && userSel[m.id]);
-  const totalPoints = activeMatches.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id],playerScores[m.id]).total,0);
+  const inAppTotal = activeMatches.reduce((sum,m)=>sum+calcPoints(userSel[m.id],results[m.id],playerScores[m.id]).total,0);
+  const preAppScore = PRE_APP_SCORES[user.displayName] || 0;
+  const totalPoints = preAppScore + inAppTotal;
   const statCards=[
     {icon:"🎯",label:"Total Points",val:totalPoints,color:"#fbbf24"},
     {icon:"🏏",label:"Matches",val:activeMatches.length,color:"#60a5fa"},
-    {icon:"📈",label:"Avg/Match",val:activeMatches.length?Math.round(totalPoints/activeMatches.length):0,color:"#4ade80"},
+    {icon:"📈",label:"Avg/Match",val:activeMatches.length?Math.round(inAppTotal/activeMatches.length):0,color:"#4ade80"},
   ];
   return (
     <div>
@@ -686,8 +688,18 @@ function MyStatsContent({user,matches,results,userSel,playerScores}) {
           </div>
         ))}
       </div>
+      {/* Pre-app score card */}
+      {preAppScore > 0 && (
+        <div style={{...S.card,marginBottom:"12px",background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.2)",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"}}>
+          <div>
+            <div style={{fontSize:"12px",fontWeight:700,color:"#a78bfa",marginBottom:"2px"}}>🗂️ M1–M16 Pre-App Total</div>
+            <div style={{fontSize:"11px",color:"#64748b"}}>Scores tracked before the app launched (Matches 1–16)</div>
+          </div>
+          <div style={{fontSize:"26px",fontWeight:900,color:"#a78bfa"}}>{preAppScore.toLocaleString()} pts</div>
+        </div>
+      )}
       {activeMatches.length === 0
-        ?<div style={{...S.card,textAlign:"center",color:"#475569",padding:"48px"}}>No active matches yet. Make your selections!</div>
+        ?<div style={{...S.card,textAlign:"center",color:"#475569",padding:"48px"}}>No in-app matches yet. Make your selections!</div>
         :activeMatches.map(m=>{
           const {breakdown,total}=calcPoints(userSel[m.id],results[m.id],playerScores[m.id]);
           return (
@@ -713,6 +725,7 @@ function MyStatsContent({user,matches,results,userSel,playerScores}) {
         })
       }
     </div>
+
   );
 }
 

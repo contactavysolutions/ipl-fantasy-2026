@@ -747,7 +747,8 @@ const PRE_APP_SCORES = {
 
 function ConsolidatedScoreContent({matches, results, allSelections, playerScores}) {
   const now = new Date();
-  const activeMatches = matches.filter(m => isMatchLocked(m, now));
+  // Only show M17+ — M01-M16 are pre-app and already rolled into the M16* column
+  const activeMatches = matches.filter(m => isMatchLocked(m, now) && m.id > 16);
 
   // Sort state: { col: "player"|"total"|matchId, dir: "asc"|"desc" }
   const [sort, setSort] = useState({ col: "total", dir: "desc" });

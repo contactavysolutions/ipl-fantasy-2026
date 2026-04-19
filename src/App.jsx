@@ -293,9 +293,34 @@ function TeamLogo({team,size=48}) {
   );
 }
 
+// ─── COUNTDOWN HELPER ────────────────────────────────────────────────────────
+function useNowTick(intervalMs=1000) {
+  const [now,setNow]=useState(new Date());
+  useEffect(()=>{
+    const t=setInterval(()=>setNow(new Date()),intervalMs);
+    return ()=>clearInterval(t);
+  },[intervalMs]);
+  return now;
+}
+
+function Countdown({lockTime}) {
+  const now=useNowTick(1000);
+  const diff=new Date(lockTime)-now;
+  if(diff<=0) return <span style={{color:"#f87171",fontSize:"11px",fontWeight:700}}>🔒 Locked</span>;
+  const h=Math.floor(diff/3600000);
+  const m=Math.floor((diff%3600000)/60000);
+  const s=Math.floor((diff%60000)/1000);
+  const urgent=diff<15*60*1000;
+  return (
+    <span style={{fontSize:"11px",fontWeight:700,color:urgent?"#f87171":"#fbbf24",background:urgent?"rgba(239,68,68,0.1)":"rgba(251,191,36,0.1)",padding:"3px 8px",borderRadius:"6px",border:`1px solid ${urgent?"rgba(239,68,68,0.25)":"rgba(251,191,36,0.2)"}`}}>
+      {urgent?"⚠️ ":"⏱ "}{h>0?`${h}h `:""}{ `${m}m ${String(s).padStart(2,"0")}s`}
+    </span>
+  );
+}
+
 // ─── MATCHES LIST ─────────────────────────────────────────────────────────────
 function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
-  const [now]=useState(new Date());
+  const now=useNowTick(30000); // refresh every 30s for status re-classification
   const [filter,setFilter]=useState("open");
   const filtered = matches.filter(m=>{
     const st=getStatus(m,now,results,userSel);
@@ -340,12 +365,15 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
             <div style={{position:"absolute",top:0,right:0,bottom:0,width:"4px",background:`linear-gradient(180deg, ${awayT.color||'#333'}, transparent)`,borderRadius:"0 14px 14px 0"}}/>
 
             {/* Header: Match number + status + date */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",flexWrap:"wrap",gap:"6px"}}>
               <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
                 <span style={{fontSize:"11px",color:"#555",fontWeight:"bold",letterSpacing:"1px"}}>M{match.id}</span>
                 <span style={{fontSize:"12px",color:"#555"}}>{match.date} · {match.time_label}</span>
               </div>
-              <span style={S.statusPill(st)}>{st==="submitted"?"✓ Submitted":st==="completed"?"✓ Done":st==="locked"?"🔒 Locked":"🟢 Open"}</span>
+              <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                {(st==="open"||st==="submitted") && match.lock_time && <Countdown lockTime={match.lock_time}/>}
+                <span style={S.statusPill(st)}>{st==="submitted"?"✓ Submitted":st==="completed"?"✓ Done":st==="locked"?"🔒 Locked":"🟢 Open"}</span>
+              </div>
             </div>
 
             {/* Main matchup: Logo - Team - VS - Team - Logo */}
@@ -582,12 +610,42 @@ function SelectionForm({match,user,onBack,results,userSel,onSave,insights,player
       </div>
 
       {!locked&&(
-        <div style={{display:"flex",gap:"12px",alignItems:"center",flexWrap:"wrap"}}>
-          <button style={S.btn("primary")} onClick={handleSave} disabled={saving}>
-            {saving?"Saving...":(saved?"Update Selections":"Save Selections")}
-          </button>
-          {msg&&<span style={{color:"#00c864",fontSize:"14px"}}>{msg}</span>}
-        </div>
+        <>
+          {/* Picks summary review */}
+          {Object.values(sel).some(v=>v) && (
+            <div style={{...S.card,marginBottom:"16px",background:"rgba(255,140,0,0.04)",border:"1px solid rgba(255,140,0,0.15)"}}>
+              <div style={{fontSize:"11px",color:"#FF8C00",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"10px"}}>📋 Your Picks Summary</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:"8px"}}>
+                {[
+                  {label:"Winning Team",val:sel.winningTeam},
+                  {label:"Powerplay Winner",val:sel.powerplayWinner},
+                  {label:"Best Batsman",val:sel.bestBatsman},
+                  {label:"Best Bowler",val:sel.bestBowler},
+                  {label:"Dot-Ball Bowler",val:sel.dotBallBowler},
+                  {label:"Total Wickets",val:sel.totalWickets},
+                  {label:"Duck Batsman",val:sel.duckBatsman},
+                  {label:"Double Category",val:sel.doubleCategory},
+                  {label:"🏆 Winning Horse",val:sel.winningHorse},
+                  {label:"💀 Losing Horse",val:sel.losingHorse},
+                ].map(({label,val})=>(
+                  <div key={label} style={{background:val?"rgba(255,255,255,0.04)":"rgba(239,68,68,0.06)",border:`1px solid ${val?"rgba(255,255,255,0.08)":"rgba(239,68,68,0.15)"}`,borderRadius:"8px",padding:"8px 10px"}}>
+                    <div style={{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"4px"}}>{label}</div>
+                    <div style={{fontSize:"12px",fontWeight:600,color:val?"#e2e8f0":"#475569"}}>{val||"— Not picked"}</div>
+                  </div>
+                ))}
+              </div>
+              {Object.values(sel).filter(v=>v).length < 10 && (
+                <div style={{fontSize:"11px",color:"#fbbf24",marginTop:"10px"}}>⚠️ {10-Object.values(sel).filter(v=>v).length} pick(s) still empty</div>
+              )}
+            </div>
+          )}
+          <div style={{display:"flex",gap:"12px",alignItems:"center",flexWrap:"wrap"}}>
+            <button style={S.btn("primary")} onClick={handleSave} disabled={saving}>
+              {saving?"Saving...":(saved?"Update Selections":"Save Selections")}
+            </button>
+            {msg&&<span style={{color:msg.startsWith("⛔")?"#f87171":"#00c864",fontSize:"14px"}}>{msg}</span>}
+          </div>
+        </>
       )}
     </div>
   );
@@ -698,6 +756,52 @@ function MyStatsContent({user,matches,results,userSel,playerScores}) {
           <div style={{fontSize:"26px",fontWeight:900,color:"#a78bfa"}}>{preAppScore.toLocaleString()} pts</div>
         </div>
       )}
+      {/* Category accuracy breakdown */}
+      {activeMatches.length > 0 && (() => {
+        const cats = [
+          {label:"Winning Team",    key:"winningTeam",    resKey:(r)=>r?.winningTeam},
+          {label:"Best Batsman",    key:"bestBatsman",    resKey:(r)=>(r?.topScorers||[])[0]},
+          {label:"Best Bowler",     key:"bestBowler",     resKey:(r)=>(r?.bestBowlers||[])[0]},
+          {label:"PP Winner",       key:"powerplayWinner",resKey:(r)=>r?.powerplayWinner},
+          {label:"Dot-Ball Bowler", key:"dotBallBowler",  resKey:(r)=>(r?.dotBallLeaders||[])[0]},
+          {label:"Total Wickets",   key:"totalWickets",   resKey:(r)=>r?.wicketsRange},
+          {label:"Duck Batsman",    key:"duckBatsman",    resKey:(r)=>(r?.duckBatsmen||[])[0]},
+          {label:"Winning Horse",   key:"winningHorse",   resKey:(r)=>r?.matchTopPlayer},
+          {label:"Losing Horse",    key:"losingHorse",    resKey:(r)=>r?.matchBottomPlayer},
+        ];
+        // Only count matches that have results
+        const scoredMatches = activeMatches.filter(m=>results[m.id]);
+        if(scoredMatches.length===0) return null;
+        return (
+          <div style={{...S.card,marginBottom:"20px"}}>
+            <div style={S.sectionTitle}>🎯 Category Accuracy</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:"8px"}}>
+              {cats.map(({label,key,resKey})=>{
+                let correct=0,total=0;
+                scoredMatches.forEach(m=>{
+                  const res=results[m.id];
+                  const pick=userSel[m.id]?.[key];
+                  if(!pick) return;
+                  total++;
+                  const answer=resKey(res);
+                  const hit=Array.isArray(answer)?answer.includes(pick):pick===answer;
+                  if(hit) correct++;
+                });
+                const pct=total>0?Math.round((correct/total)*100):null;
+                const color=pct===null?"#475569":pct>=60?"#4ade80":pct>=35?"#fbbf24":"#f87171";
+                return (
+                  <div key={key} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"10px",padding:"10px 12px"}}>
+                    <div style={{fontSize:"10px",color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{label}</div>
+                    <div style={{fontSize:"22px",fontWeight:800,color}}>{pct!==null?`${pct}%`:"—"}</div>
+                    <div style={{fontSize:"10px",color:"#475569",marginTop:"2px"}}>{correct}/{total} correct</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {activeMatches.length === 0
         ?<div style={{...S.card,textAlign:"center",color:"#475569",padding:"48px"}}>No in-app matches yet. Make your selections!</div>
         :activeMatches.map(m=>{
@@ -2099,6 +2203,29 @@ export default function App() {
           <div style={S.logo}>🏏 IPL FANTASY</div>
           <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
             <span style={{fontSize:"12px",color:"#64748b",fontWeight:500}}>{user.displayName}</span>
+            {/* Alerts bell — missing picks indicator */}
+            {(()=>{
+              const nowH=new Date();
+              const missing=matches.filter(m=>{
+                if(isMatchLocked(m,nowH)) return false; // already locked, too late
+                const msSoon=new Date(m.lock_time)-nowH;
+                if(msSoon>48*3600000) return false; // more than 48h away, no urgency yet
+                const uname=user.username;
+                return !allSelections[uname]?.[m.id]; // no pick yet
+              });
+              if(missing.length===0) return null;
+              return (
+                <div style={{position:"relative"}}>
+                  <button
+                    onClick={()=>setPage("matches")}
+                    style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:"6px",padding:"4px 10px",cursor:"pointer",fontSize:"11px",fontWeight:700,color:"#f87171",display:"flex",alignItems:"center",gap:"5px",transition:"all 0.2s"}}
+                    title={`Missing picks for: ${missing.map(m=>`M${m.id} (${m.home} vs ${m.away})`).join(", ")}`}
+                  >
+                    🔔 <span style={{background:"#ef4444",color:"#fff",borderRadius:"50%",width:"16px",height:"16px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:800}}>{missing.length}</span> Pick{missing.length>1?"s":""} Due
+                  </button>
+                </div>
+              );
+            })()}
             {pushStatus !== "granted" && pushStatus !== "unsupported" && (
               <button onClick={enablePushNotifications} style={{background:"rgba(255,140,0,0.1)",border:"1px solid rgba(255,140,0,0.4)",borderRadius:"6px",padding:"4px 8px",cursor:"pointer",color:"#fbbf24",fontSize:"11px",fontWeight:600,transition:"all 0.2s"}}>
                 🔔 Alerts

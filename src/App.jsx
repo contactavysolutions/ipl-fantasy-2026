@@ -1724,6 +1724,8 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
   const [dotBallLeaderSelected,setDotBallLeaderSelected]=useState("");
   const [saved,setSaved]=useState(false);
   const [saving,setSaving]=useState(false);
+  const [autofillLoading,setAutofillLoading]=useState(false);
+  const [autofillError,setAutofillError]=useState(null);
 
   const lockedMatches=matches.filter(m=>isMatchLocked(m, now));
   const selectMatch=(m)=>{
@@ -1740,8 +1742,44 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
     setBestBowlerSelected("");
     setDotBallLeaderSelected("");
     setSaved(false);
+    setAutofillError(null);
   };
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  const handleAutofill=async()=>{
+    if(!selectedMatch) return;
+    setAutofillLoading(true); setAutofillError(null);
+    try {
+      const res = await fetch("/api/autofill-results", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId: selectedMatch.id, home: selectedMatch.home, away: selectedMatch.away, date: selectedMatch.date, allPlayers })
+      });
+      const txt = await res.text();
+      let json; try { json = JSON.parse(txt); } catch(e) { throw new Error(txt || res.statusText); }
+      if (!res.ok) throw new Error(json.error || "Failed finding result data");
+      
+      const d = json.data;
+      setForm(prev => ({
+        ...prev,
+        winningTeam: d.winningTeam || prev.winningTeam,
+        winByRuns: d.winByRuns !== undefined ? d.winByRuns : prev.winByRuns,
+        runMargin: d.runMargin ? String(d.runMargin) : prev.runMargin,
+        wicketMargin: d.wicketMargin ? String(d.wicketMargin) : prev.wicketMargin,
+        topScorers: d.topScorers?.length ? d.topScorers : prev.topScorers,
+        topScorerRuns: d.topScorerRuns ? String(d.topScorerRuns) : prev.topScorerRuns,
+        bestBowlers: d.bestBowlers?.length ? d.bestBowlers : prev.bestBowlers,
+        totalWickets: d.totalWickets ? String(d.totalWickets) : prev.totalWickets,
+        wicketsRange: d.wicketsRange || prev.wicketsRange,
+        powerplayWinner: d.powerplayWinner || prev.powerplayWinner,
+        powerplayScore: d.powerplayScore ? String(d.powerplayScore) : prev.powerplayScore,
+        powerplayDiff: d.powerplayDiff ? String(d.powerplayDiff) : prev.powerplayDiff,
+      }));
+    } catch(e) {
+      setAutofillError(e.message);
+    } finally {
+      setAutofillLoading(false);
+    }
+  };
 
   const handleSave=async()=>{
     if(!selectedMatch) return;
@@ -1802,7 +1840,17 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
               :<div style={S.card}>
                 <div style={{fontSize:"18px",fontWeight:"bold",color:"#e8e0d0",marginBottom:"4px"}}>M{m.id}: {m.home} vs {m.away}</div>
                 <div style={{fontSize:"12px",color:"#555",marginBottom:"6px"}}>{m.date} · {m.time_label}</div>
-                <div style={{fontSize:"12px",color:"#4db8ff",marginBottom:"16px"}}>📋 {submissionCount}/{FANTASY_PLAYERS.length} players submitted</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px",flexWrap:"wrap",gap:"12px"}}>
+                  <div style={{fontSize:"12px",color:"#4db8ff"}}>📋 {submissionCount}/{FANTASY_PLAYERS.length} players submitted</div>
+                  <button style={{...S.btn("primary"),padding:"6px 14px",fontSize:"12px",background:"linear-gradient(135deg, rgba(168,85,247,0.8), rgba(217,70,239,0.8))"}} onClick={handleAutofill} disabled={autofillLoading}>
+                    {autofillLoading ? "🔄 AI Scraping & Parsing..." : "🪄 Quick Auto-Fill Form"}
+                  </button>
+                </div>
+                {autofillError && (
+                  <div style={{fontSize:"12px",color:"#f87171",marginBottom:"12px",padding:"8px",background:"rgba(239,68,68,0.1)",borderRadius:"6px"}}>
+                    ⚠ <strong>AI Error:</strong> {autofillError}
+                  </div>
+                )}
 
                 <div style={S.sectionTitle}>Match Result</div>
                 <div style={{...S.grid2,marginBottom:"14px"}}>

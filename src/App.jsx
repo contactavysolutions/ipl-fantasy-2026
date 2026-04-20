@@ -1,40 +1,44 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
+import { createClient } from '@supabase/supabase-js';
+
 // ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://olewyqrxgwjjjspeonon.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sZXd5cXJ4Z3dqampzcGVvbm9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MzM3NjMsImV4cCI6MjA5MDMwOTc2M30.mbY5GR8eZu7BH1UD0Yq2B_l5dr4bPB-RkYXa-vgRwYI";
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
+// ─── SUPABASE CLIENT (Legacy Wrapper) ─────────────────────────────────────────
 const supa = {
   async query(table, opts = {}) {
-    let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-    if (opts.select) url += `select=${opts.select}&`;
-    if (opts.eq) Object.entries(opts.eq).forEach(([k,v]) => url += `${k}=eq.${encodeURIComponent(v)}&`);
-    if (opts.order) url += `order=${opts.order}&`;
-    const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
-    return res.json();
+    let q = supabase.from(table).select(opts.select || '*');
+    if (opts.eq) {
+      Object.entries(opts.eq).forEach(([k,v]) => { q = q.eq(k, v); });
+    }
+    if (opts.order) {
+      const [col, dir] = opts.order.split('.');
+      q = q.order(col, { ascending: dir === 'asc' });
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
   },
   async upsert(table, data, onConflict) {
-    const url = `${SUPABASE_URL}/rest/v1/${table}?on_conflict=${onConflict}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" },
-      body: JSON.stringify(data),
-    });
-    return res.json();
+    const { data: res, error } = await supabase.from(table).upsert(data, { onConflict }).select();
+    if (error) throw error;
+    return res || [];
   },
   async update(table, data, eq) {
-    let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-    Object.entries(eq).forEach(([k,v]) => url += `${k}=eq.${encodeURIComponent(v)}&`);
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
-      body: JSON.stringify(data),
-    });
-    return res.json();
+    let q = supabase.from(table).update(data);
+    if (eq) {
+      Object.entries(eq).forEach(([k,v]) => { q = q.eq(k, v); });
+    }
+    const { data: res, error } = await q.select();
+    if (error) throw error;
+    return res || [];
   },
 };
+
 
 // ─── STATIC DATA ──────────────────────────────────────────────────────────────
 const TEAMS = {
@@ -205,11 +209,19 @@ function LoginPage({onLogin}) {
     if (!username||!password) { setError("Please enter username and password"); return; }
     setLoading(true); setError("");
     try {
-      const data = await supa.query("users",{select:"*",eq:{username:username.toLowerCase().trim()}});
-      if (!data||data.length===0||data.error) { setError("User not found"); setLoading(false); return; }
-      const user = data[0];
-      if (user.password!==password) { setError("Incorrect password"); setLoading(false); return; }
-      onLogin({username:user.username,displayName:user.display_name,isAdmin:user.is_admin});
+      const email = `${username.toLowerCase().trim()}@iplfantasy.app`;
+      const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (authErr) { 
+        setError(authErr.message === "Invalid login credentials" ? "Incorrect password or user not found" : authErr.message); 
+        setLoading(false); 
+        return; 
+      }
+      const meta = data.user.user_metadata || {};
+      onLogin({
+        username: meta.username || username.toLowerCase().trim(),
+        displayName: meta.display_name || username,
+        isAdmin: meta.is_admin || false
+      });
     } catch(e) { setError("Connection error. Please try again."); }
     setLoading(false);
   };
@@ -1192,8 +1204,11 @@ function UserManagementTab() {
 
   const resetPassword=async(username)=>{
     const newPwd=genPwd();
-    await supa.update("users",{password:newPwd},{username});
-    setUsers(u=>u.map(x=>x.username===username?{...x,password:newPwd}:x));
+    const { error } = await supabase.rpc("admin_reset_password", { target_username: username, new_password: newPwd });
+    if (error) {
+      alert("Failed to reset password: " + error.message);
+      return;
+    }
     setResetInfo({username,newPwd});
   };
 
@@ -1211,7 +1226,7 @@ function UserManagementTab() {
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13px",minWidth:"400px"}}>
           <thead>
             <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.03)"}}>
-              {["Player","Username","Password",""].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase"}}>{h}</th>)}
+              {["Player","Username","Action"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",color:"#888",fontWeight:"normal",fontSize:"11px",letterSpacing:"1px",textTransform:"uppercase"}}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -1219,7 +1234,6 @@ function UserManagementTab() {
               <tr key={u.username} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"transparent":"rgba(255,255,255,0.01)"}}>
                 <td style={{padding:"10px 14px",color:"#e8e0d0"}}>{u.display_name}</td>
                 <td style={{padding:"10px 14px",color:"#888",fontFamily:"monospace"}}>{u.username}</td>
-                <td style={{padding:"10px 14px",color:"#FFD700",fontFamily:"monospace",letterSpacing:"1px"}}>{u.password}</td>
                 <td style={{padding:"10px 14px"}}>
                   <button style={{...S.btn("ghost"),padding:"5px 10px",fontSize:"12px",border:"1px solid rgba(255,165,0,0.3)",color:"#FFD700"}} onClick={()=>resetPassword(u.username)}>Reset</button>
                 </td>

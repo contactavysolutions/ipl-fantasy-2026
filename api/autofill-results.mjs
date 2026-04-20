@@ -30,7 +30,10 @@ export default async function handler(req) {
     const homeFull = TEAM_NAME_MAP[home] || home;
     const awayFull = TEAM_NAME_MAP[away] || away;
 
-    const query = `IPL scorecard match result ${homeFull} vs ${awayFull} ${date} post match cricbuzz espncricinfo`;
+    // Strip the year from the date (e.g., "19-Apr-26" -> "19 Apr") to prevent search engine confusion
+    const dateNoYear = date.replace(/-/g, " ").replace(/20\d\d|\d\d$/, "").trim();
+
+    const query = `IPL Match ${matchId} scorecard ${homeFull} vs ${awayFull} ${dateNoYear} result cricbuzz espncricinfo`;
 
     // 1. Tavily Search
     const tavilyRes = await fetch("https://api.tavily.com/search", {
@@ -55,8 +58,13 @@ export default async function handler(req) {
 
     // 2. Groq LLM Parse
     const prompt = `
-You are a cricket stats expert extracting match results for the IPL Fantasy app.
-Extract the match results from the following web search data for the match between ${home} (${homeFull}) and ${away} (${awayFull}) on ${date}.
+You are a cricket stats database expert extracting match results for the IPL Fantasy app.
+
+CRITICAL INSTRUCTION:
+We are looking for the exact scorecard for: IPL Match ${matchId} between ${home} (${homeFull}) and ${away} (${awayFull}).
+Our internal system date is "${date}", but this tournament year is simulated. 
+If your search context provides a scorecard for "Match ${matchId}" between these exact two teams from a recent season (like 2024 or 2025), you MUST treat that scorecard as the absolute source of truth.
+DO NOT hallucinate data. DO NOT return stats for a different match number (e.g. Match 14) between these teams just because the date sort of matched. Focus firmly on MATCH ${matchId} and the two teams.
 
 Web Search Context:
 ${sourcesContext}

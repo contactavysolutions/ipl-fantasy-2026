@@ -30,7 +30,7 @@ export default async function handler(req) {
     const homeFull = TEAM_NAME_MAP[home] || home;
     const awayFull = TEAM_NAME_MAP[away] || away;
 
-    const query = `IPL 2026 scorecard match result ${homeFull} vs ${awayFull} ${date} post match cricbuzz espncricinfo`;
+    const query = `IPL scorecard match result ${homeFull} vs ${awayFull} ${date} post match cricbuzz espncricinfo`;
 
     // 1. Tavily Search
     const tavilyRes = await fetch("https://api.tavily.com/search", {

@@ -1773,6 +1773,9 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
         powerplayWinner: d.powerplayWinner || prev.powerplayWinner,
         powerplayScore: d.powerplayScore ? String(d.powerplayScore) : prev.powerplayScore,
         powerplayDiff: d.powerplayDiff ? String(d.powerplayDiff) : prev.powerplayDiff,
+        dotBallLeaders: d.dotBallLeaders?.length ? d.dotBallLeaders : prev.dotBallLeaders,
+        dotBalls: d.dotBalls ? String(d.dotBalls) : prev.dotBalls,
+        duckBatsmen: d.duckBatsmen?.length ? d.duckBatsmen : prev.duckBatsmen,
       }));
     } catch(e) {
       setAutofillError(e.message);

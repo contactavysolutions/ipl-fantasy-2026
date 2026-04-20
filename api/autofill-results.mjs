@@ -87,7 +87,10 @@ Adhere EXACTLY to the following schema:
   "totalWickets": number (sum of wickets fallen across BOTH innings),
   "powerplayWinner": string ("${home}", "${away}", or "Tied". The team with higher score in the first 6 overs),
   "powerplayScore": number (the higher powerplay score),
-  "powerplayDiff": number (difference between the two powerplay scores)
+  "powerplayDiff": number (difference between the two powerplay scores),
+  "dotBallLeaders": array of strings (the bowler(s) who bowled the MAXIMUM number of dot balls in the entire match. Choose exact match from AllowedPlayers if possible),
+  "dotBalls": number (the exact number of dot balls that the dot ball leader bowled),
+  "duckBatsmen": array of strings (the batsmen who got out for exactly 0 runs in the match, i.e., scored a duck. Choose exact match from AllowedPlayers if possible)
 }
 
 AllowedPlayers (try to map the names found to these EXACT strings):

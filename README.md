@@ -296,6 +296,8 @@ The application functions as a native progressive web application, proactively k
 
 ---
 
+---
+
 ### 10. **Live Pick Distributions (Gamification Analytics)**
 **File**: `src/App.jsx` (LiveDistributions Component)
 
@@ -303,6 +305,22 @@ The system deploys 6 fully animated analytical pie charts dynamically tracking l
 - **Anti-Cheat Lock**: Placed structurally inside the `Live Match Center` block to guarantee users can only visualize league-wide pick aggregates AFTER matches lock. 
 - **Dynamic Recharts Engine**: Maps React state aggregates directly into SVG `<ResponsiveContainer>` blocks powered by `recharts`.
 - **Intelligent Branding**: Winning team arrays autonomously dynamically map colors to match real-world IPL franchises (e.g. CSK -> Yellow #F5A623). 
+
+---
+
+### 11. **AI Match Previews & Insights**
+**File**: `api/lib/insights.mjs`
+
+The application provides fully automated, AI-generated match previews for upcoming games to assist fantasy players in making informed decisions exactly when they need it.
+- **Tavily Web Scraping**: The backend intercepts live internet chatter, pitch reports, and sports journalism leading up to the game.
+- **Groq Llama-3 Structuring**: Meta's advanced LLM consumes the scraped unstructured data alongside strictly anchored official IPL Rosters to ensure zero player hallucination.
+- **Data Points Delivered**: 
+  - Probable Playing XI 
+  - In-Form Batsmen & Bowlers
+  - Pitch Report & Venue Analysis
+  - Head-to-Head History
+  - Key Matchups & Prediction Summary
+- **Automation**: Vercel cron jobs (`/api/generate-insights`) automatically refresh the previews. Admins can also trigger an intelligence sweep manually from the **AI Insights** tab in the Admin panel.
 
 ---
 

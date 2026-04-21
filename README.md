@@ -50,14 +50,15 @@ public/
 
 ## 📋 Core Functionality
 
-### 1. **User Authentication**
-**File**: `src/App.jsx` lines 119-175
+### 1. **User Authentication (Supabase Auth)**
+**File**: `src/App.jsx`
 
-Users log in with plain-text username/password (stored in Supabase `users` table):
-- Username uniqueness validated
-- Password stored in plaintext (⚠️ **SECURITY WARNING**: Not recommended for production)
-- Session persists in localStorage (`lpUser` key)
-- Automatic logout if user not found in database
+Users authenticate securely via **Supabase Auth** (`auth.users`):
+- Passwords are securely hashed using `crypt` (bcrypt).
+- Row Level Security (RLS) strict lockdown prevents unauthorized REST manipulation.
+- Legacy plaintext `password` columns have been permanently aggressively dropped from the public database schema.
+- Session persists securely through encrypted Supabase local storage caching tokens.
+- Admins possess isolated RPC (`admin_reset_password`) triggers to safely overwrite user credentials without exposing raw plaintexts.
 
 **Login State**:
 ```javascript
@@ -159,8 +160,16 @@ To gracefully handle ties and ducks, the fields for **Top Scorers, Best Bowlers,
   4. Saved as a comma-separated string `TEXT` on the backend server for simplicity.
 
 #### Tabs in Admin Panel
-1. **Match Results Tab**: Enter match outcomes for locked/completed matches
-2. **Player Passwords Tab**: Manage user credentials (UserManagementTab)
+1. **Match Results Tab**: Enter match outcomes for locked/completed matches.
+2. **Player Passwords Tab**: Manage user credentials (UserManagementTab).
+
+#### 🪄 AI Auto-Fill Results Engine
+**File**: `api/autofill-results.mjs`
+To speed up data-entry, admins can click the "Quick Auto-Fill Form" button to trigger a Serverless workflow:
+- **Tavily API**: Intercepts live sports articles and Cricbuzz/ESPN scorecards via advanced web search querying.
+- **Groq API**: Runs Meta's flagship `llama-3.3-70b-versatile` LLM to aggressively parse unstructured sports journalism into strict JSON formats matching the UI schema.
+- **Human-in-the-Loop Validation**: The AI *never* writes directly to the database. Instead, the React frontend ingests the mapped JSON (run margin, dot ball leaders, total wickets, top scorers, duck batsmen, etc.) and pre-populates the forms, allowing the Admin to visually verify reality before submitting.
+- **Anti-Hallucination Measures**: Web searches automatically strip out abstract simulated years and strictly target exact `Match ID` constraints to prevent language models from hallucinating past-season scorecards.
 
 ---
 
@@ -409,27 +418,12 @@ Update Leaderboard & User Stats
 - ✅ SPA routing without page reloads
 - ✅ Responsive design across devices
 
-### 🔐 Security Notes
-⚠️ **Current Security Issues**:
-1. **Plaintext Passwords**: Passwords stored in plaintext in database
-   - Should be hashed with bcrypt/argon2
-   - JWT tokens recommended for session management
-
-2. **Supabase Key Exposure**: API key visible in frontend code
-   - Should use environment variables
-   - RLS (Row Level Security) policies should be configured
-
-3. **No Input Validation**: Frontend only validation
-   - Backend validation needed
-   - SQL injection protection required
-
-**Production Recommendations**:
-- Implement proper authentication (OAuth, JWT)
-- Hash passwords server-side
-- Enable Supabase RLS policies
-- Use environment variables for secrets
-- Add HTTPS-only cookies
-- Implement CORS policies
+### 🔐 Security Architecture
+The application runs on a fully fortified "Zero-Trust" posture:
+- **Supabase Auth Middleware**: Users seamlessly authenticate via JWT verification standardizing to Postgres `auth.users`.
+- **Row-Level-Security (RLS)**: Enforced aggressively across all public tables (`matches`, `results`, `selections`). Non-authenticated pings naturally hit hard bounces across the API Gateway. Service Roles are uniquely enforced at the Edge Function level for bypass operations natively behind firewall thresholds.
+- **Password Destruction**: Legacy custom authentication fields were surgically decimated.
+- **Cryptographic Resets**: Admins route password resets entirely through `SECURITY DEFINER` postgres functions leveraging `bcrypt` primitives directly.
 
 ---
 
@@ -629,6 +623,7 @@ Venky, Naresh, Srikanth B, Prashanth, Sreeram, Santhosh Male
 ---
 
 ## 📌 Version History
+- **v1.3.0** (April 20, 2026): Auth Overhaul & AI Web Scraping Migration! Completely deprecated the insecure custom credential methodology, replacing it seamlessly with enterprise-grade **Supabase Auth** mechanisms bound tight to strict Row-Level Security profiles. Additionally implemented the **AI Match Results Auto-Fill** integration hooking into Groq (`llama-3.3-70b-versatile`) and Tavily Search APIs natively mapped into Admin GUI workflows designed with rigorous hallucination guardrails.
 - **v1.2.0** (April 14, 2026): Swapped AI pipeline completely off Google Gemini to Meta Llama 3 via Groq API routing standardizations to definitively eradicate hardware timeouts. Engineered complete Web Push Notification capability, leveraging native Service Worker encryption hooks tightly bound to Supabase `pg_cron` mathematical trigger cycles. Designed a dynamic `<LiveDistributions>` dashboard utilizing `recharts` to mathematically plot global Pick Distributions synchronously.
 - **v1.1.0** (April 12, 2026): Handled array structures for tracking multiple tied players natively for Top Scorer, Best Bowler, and Dot Ball metrics. Inserted Wicket Bonus milestones.
 - **v1.0.1** (April 03, 2026): Migrated backend architecture from Netlify Edge to Vercel Serverless Functions (`api/`) & implemented `vercel.json`.
@@ -646,5 +641,5 @@ For questions or issues, refer to:
 
 ---
 
-**Last Updated**: April 14, 2026  
+**Last Updated**: April 20, 2026  
 **Status**: ✅ Production Ready

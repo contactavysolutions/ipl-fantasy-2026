@@ -158,12 +158,12 @@ const TROPHIES = [
 
 function calcUserTrophies(username, matches, results, allSelections, playerScores, ranksMap={}) {
   const t = [];
-  const add = (id) => { if (!t.includes(id)) t.push(id); };
+  const add = (id, detail) => { if (!t.some(x => x.id === id)) t.push({ id, detail }); };
 
   // Board positions
   const myRank = ranksMap[username]?.rank;
-  if (myRank === 1) add("baahubali");
-  if (myRank && myRank === FANTASY_PLAYERS.length) add("lastbench");
+  if (myRank === 1) add("baahubali", "Currently Top of the Leaderboard!");
+  if (myRank && myRank === FANTASY_PLAYERS.length) add("lastbench", "Currently Dead Last... yikes.");
 
   let hot=0, cold=0, alt=0, lastRes=null;
   let highestMatchScore = 0;
@@ -179,26 +179,26 @@ function calcUserTrophies(username, matches, results, allSelections, playerScore
     // Streaks
     const won = sel.winningTeam === r.winningTeam;
     if (won) { hot++; cold=0; } else { cold++; hot=0; }
-    if (hot >= 4) add("thaggedhele");
-    if (cold >= 4) add("ironleg");
+    if (hot >= 4) add("thaggedhele", `Hit 4+ Win Streak by Match ${m.id}`);
+    if (cold >= 4) add("ironleg", `Lost 4 picks in a row by Match ${m.id}`);
     
     if (lastRes !== null && won !== lastRes) alt++; else alt=0;
-    if (alt >= 3) add("confusion");
+    if (alt >= 3) add("confusion", `Win/Loss Seesaw across 3 matches (M${m.id})`);
     lastRes = won;
 
     // Highest Single Match Score globally checking (simplified check against 300)
     const p = calcPoints(sel, r, playerScores[m.id]);
-    if (p.total >= 280) add("mindblock"); // Using 280 threshold as mind block
+    if (p.total >= 280) add("mindblock", `Scored ${p.total} Pts in Match ${m.id}`); // Using 280 threshold as mind block
 
     // Bokka Boshnam (Duck)
-    if (r.duckBatsmen?.includes(sel.duckBatsman)) add("bokkaboshnam");
+    if (r.duckBatsmen?.includes(sel.duckBatsman)) add("bokkaboshnam", `Match ${m.id}: ${sel.duckBatsman} (Duck!)`);
     
     // Flute Babu / Gabbar
     const bBat = playerScores[m.id]?.[sel.bestBatsman];
-    if (bBat && bBat.sixes > 8) add("flutebabu");
+    if (bBat && bBat.sixes > 8) add("flutebabu", `Match ${m.id}: ${sel.bestBatsman} (${bBat.sixes} Sixes!)`);
     
     const bBowl = playerScores[m.id]?.[sel.bestBowler];
-    if (bBowl && bBowl.wickets >= 4) add("gabbar");
+    if (bBowl && bBowl.wickets >= 4) add("gabbar", `Match ${m.id}: ${sel.bestBowler} (${bBowl.wickets} Wickets!)`);
 
     // Akkada Space Ledu (Unique Horse)
     if (sel.winningHorse && sel.winningHorse === r.matchTopPlayer) {
@@ -206,13 +206,13 @@ function calcUserTrophies(username, matches, results, allSelections, playerScore
       Object.values(allSelections).forEach(userMap => {
         if (userMap[m.id]?.winningHorse === sel.winningHorse) pickCount++;
       });
-      if (pickCount === 1) add("akkadaspace");
+      if (pickCount === 1) add("akkadaspace", `Match ${m.id}: ${sel.winningHorse}`);
     }
   }
 
   // Dookudu check: If rank change > 3 (Placeholder check mapping)
-  if (ranksMap[username]?.change > 2) add("dookudu");
-  if (t.length <= 1) add("relangimavayya"); // Defaults
+  if (ranksMap[username]?.change > 2) add("dookudu", `Jumped ${ranksMap[username].change} ranks at once`);
+  if (t.length <= 1) add("relangimavayya", "Too Safe: Minimum risk taken."); // Defaults
 
   return t;
 }
@@ -1259,8 +1259,10 @@ function TrophyCabinetContent({matches, results, allSelections, playerScores}) {
     ranksMap[uname] = { rank: idx + 1, change: 0 }; // Placeholder rank change
   });
 
-  const renderTrophyCard = (badgeDef, isEarned) => (
-    <div key={badgeDef.id} style={{
+  const renderTrophyCard = (badgeDef, earnedObj) => {
+    const isEarned = !!earnedObj;
+    return (
+    <div key={badgeDef.id} className="trophy-card" style={{
       ...S.card, 
       padding:"16px",
       display:"flex", 
@@ -1273,20 +1275,54 @@ function TrophyCabinetContent({matches, results, allSelections, playerScores}) {
       filter: isEarned ? "none" : "grayscale(100%)",
       transform: isEarned ? "scale(1.02)" : "scale(1)",
       transition: "all 0.3s ease",
-      position:"relative"
+      position:"relative",
+      cursor: isEarned && earnedObj.detail ? "help" : "default"
     }}>
       <div style={{fontSize:"40px", marginBottom:"12px", filter: isEarned ? `drop-shadow(0 0 10px ${badgeDef.color})` : "none"}}>{badgeDef.emoji}</div>
       <div style={{fontWeight:800, fontSize:"14px", color: isEarned ? badgeDef.color : "#64748b", marginBottom:"6px"}}>{badgeDef.label}</div>
       <div style={{fontSize:"11px", color:"#94a3b8", lineHeight:"1.4"}}>{badgeDef.desc}</div>
       {!isEarned && <div style={{fontSize:"9px", fontWeight:"bold", color:"#ef4444", marginTop:"10px", textTransform:"uppercase", letterSpacing:"1px"}}>🔒 Locked</div>}
+      
+      {isEarned && earnedObj.detail && (
+        <div className="trophy-tooltip" style={{
+          position: "absolute",
+          bottom: "105%",
+          left: "50%",
+          transform: "translateX(-50%) translateY(10px)",
+          background: "rgba(0,0,0,0.95)",
+          color: "#fff",
+          padding: "8px 12px",
+          borderRadius: "8px",
+          fontSize: "11px",
+          fontWeight: "600",
+          whiteSpace: "nowrap",
+          pointerEvents: "none",
+          opacity: 0,
+          visibility: "hidden",
+          transition: "opacity 0.2s ease, transform 0.2s ease",
+          border: `1px solid ${badgeDef.color}50`,
+          boxShadow: `0 4px 15px rgba(0,0,0,0.5)`,
+          zIndex: 10
+        }}>
+          📌 {earnedObj.detail}
+        </div>
+      )}
     </div>
-  );
+  )};
 
   return (
     <div style={{display:"grid", gap:"30px"}}>
+      <style>{`
+        .trophy-card:hover .trophy-tooltip {
+          opacity: 1 !important;
+          visibility: visible !important;
+          transform: translateX(-50%) translateY(0) !important;
+        }
+      `}</style>
       {rankGrid.map(({p: player}) => {
         const username = player.toLowerCase().replace(/\s/g,"_");
-        const earnedIds = calcUserTrophies(username, matches, results, allSelections, playerScores, ranksMap);
+        const earnedObjs = calcUserTrophies(username, matches, results, allSelections, playerScores, ranksMap);
+        const earnedIds = earnedObjs.map(t => t.id);
         
         const hasAxe = earnedIds.includes("thaggedhele");
         const hasFoot = earnedIds.includes("ironleg");
@@ -1305,7 +1341,7 @@ function TrophyCabinetContent({matches, results, allSelections, playerScores}) {
             </div>
 
             <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:"16px", position:"relative", zIndex:2}}>
-              {TROPHIES.map(bad => renderTrophyCard(bad, earnedIds.includes(bad.id)))}
+              {TROPHIES.map(bad => renderTrophyCard(bad, earnedObjs.find(e => e.id === bad.id)))}
             </div>
 
             {hasAxe && <img src="/pushpa_axe_badge_1776915965067.png" alt="Pushpa Gamification Axe Trophy Render" style={{position:"absolute", top:"-5%", right:"-5%", width:"350px", opacity:0.15, transform:"rotate(10deg)", pointerEvents:"none", mixBlendMode:"screen", zIndex:1}}/>}

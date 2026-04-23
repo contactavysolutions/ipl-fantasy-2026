@@ -1244,7 +1244,7 @@ function HeadToHeadContent({matches, results, allSelections, playerScores}) {
 function TrophyCabinetContent({matches, results, allSelections, playerScores}) {
   // Compute ranks to inject into calculator
   const pScores = {};
-  FANTASY_PLAYERS.forEach(p => pScores[p] = 0);
+  FANTASY_PLAYERS.forEach(p => pScores[p] = PRE_APP_SCORES[p] || 0);
   matches.forEach(m => {
     if (!results[m.id]) return;
     FANTASY_PLAYERS.forEach(p => {
@@ -1254,7 +1254,10 @@ function TrophyCabinetContent({matches, results, allSelections, playerScores}) {
   });
   const rankGrid = FANTASY_PLAYERS.map(p => ({ p, s: pScores[p] })).sort((a,b)=>b.s-a.s);
   const ranksMap = {};
-  rankGrid.forEach((obj, idx) => ranksMap[obj.p] = { rank: idx + 1, change: 0 }); // Placeholder rank change
+  rankGrid.forEach((obj, idx) => {
+    const uname = obj.p.toLowerCase().replace(/\s/g,"_");
+    ranksMap[uname] = { rank: idx + 1, change: 0 }; // Placeholder rank change
+  });
 
   const renderTrophyCard = (badgeDef, isEarned) => (
     <div key={badgeDef.id} style={{

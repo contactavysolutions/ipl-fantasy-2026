@@ -1600,10 +1600,16 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
         dot_ball_score: calc.dot_ball_score || null
       };
     });
-    await onSavePlayerScores(m.id, scoresArray);
-    setSaving(false);
-    setSavedMsg("Scores saved successfully ✓");
-    setTimeout(() => setSavedMsg(""), 3000);
+    try {
+      await onSavePlayerScores(m.id, scoresArray);
+      setSaving(false);
+      setSavedMsg("Scores saved successfully ✓");
+      setTimeout(() => setSavedMsg(""), 3000);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save scores: " + err.message);
+      setSaving(false);
+    }
   };
 
   return (

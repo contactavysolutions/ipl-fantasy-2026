@@ -140,6 +140,83 @@ function getStreakBadge(results, userSelections, matches, now) {
 }
 const FANTASY_PLAYERS = ["Ani","Haren","Ganga","Jitendar","Mahesh","Nag","Naren","Navdeep","Omkar","Peddi","Praveen","Raghav","Ranga","Rohit","Sandeep","Santhosh","Soma","Sridhar K","Krishna","Naresh","Srikanth B","Prashanth","Sreeram","Santhosh Male","Ranjith"].sort();
 
+// ─── TOLLYWOOD GAMIFICATION ENGINE ────────────────────────────────────────────
+const TROPHIES = [
+  { id:"baahubali", label:"Baahubali", desc:"Overall Rank #1. Nene Raju, Nene Mantri.", emoji:"👑", color:"#FFD700" },
+  { id:"thaggedhele", label:"Thaggedhe Le!", desc:"4+ Match Win Streak. Unstoppable Pushpa.", emoji:"🪓", color:"#ef4444" },
+  { id:"ironleg", label:"Iron Leg", desc:"4+ Match Loss Streak. Daridram thandavam aaduthundi!", emoji:"🦶", color:"#9ca3af" },
+  { id:"akkadaspace", label:"Akkada Space Ledu", desc:"Picked a unique Horse that scored big.", emoji:"🧠", color:"#8b5cf6" },
+  { id:"mindblock", label:"Mind Block", desc:"Highest single match score ever recorded.", emoji:"🤯", color:"#ec4899" },
+  { id:"confusion", label:"Confusion Master", desc:"Coin flip win/loss streak. Naku em kanipistaledu.", emoji:"🎭", color:"#f97316" },
+  { id:"bokkaboshnam", label:"Bokka Boshnam", desc:"Picked a duck batsman! Enno anukuntam...", emoji:"🦆", color:"#64748b" },
+  { id:"relangimavayya", label:"Slow Poison", desc:"Zero risk picks. Emito, antha hayiga undi.", emoji:"🐢", color:"#10b981" },
+  { id:"lastbench", label:"Last Bench", desc:"Dead last in Leaderboard. Naku eem telidu mastaru.", emoji:"🛡️", color:"#374151" },
+  { id:"dookudu", label:"Dookudu", desc:"Moved up 3+ ranks at once. Evadu kodithe dimma...", emoji:"🤫", color:"#3b82f6" },
+  { id:"flutebabu", label:"Sixer King", desc:"Picked a batsman hitting 4+ sixes.", emoji:"🏏", color:"#f43f5e" },
+  { id:"gabbar", label:"Wicket Veta", desc:"Picked a 4-wicket haul bowler. Naa kodaka...", emoji:"🎳", color:"#0ea5e9" }
+];
+
+function calcUserTrophies(username, matches, results, allSelections, playerScores, ranksMap={}) {
+  const t = [];
+  const add = (id) => { if (!t.includes(id)) t.push(id); };
+
+  // Board positions
+  const myRank = ranksMap[username]?.rank;
+  if (myRank === 1) add("baahubali");
+  if (myRank && myRank === FANTASY_PLAYERS.length) add("lastbench");
+
+  let hot=0, cold=0, alt=0, lastRes=null;
+  let highestMatchScore = 0;
+
+  const sortedM = matches.filter(m=>results[m.id]).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  
+  for (let i=0; i<sortedM.length; i++) {
+    const m = sortedM[i];
+    const r = results[m.id];
+    const sel = allSelections[username]?.[m.id];
+    if (!sel) continue;
+    
+    // Streaks
+    const won = sel.winningTeam === r.winningTeam;
+    if (won) { hot++; cold=0; } else { cold++; hot=0; }
+    if (hot >= 4) add("thaggedhele");
+    if (cold >= 4) add("ironleg");
+    
+    if (lastRes !== null && won !== lastRes) alt++; else alt=0;
+    if (alt >= 3) add("confusion");
+    lastRes = won;
+
+    // Highest Single Match Score globally checking (simplified check against 300)
+    const p = calcPoints(sel, r, playerScores[m.id]);
+    if (p.total >= 280) add("mindblock"); // Using 280 threshold as mind block
+
+    // Bokka Boshnam (Duck)
+    if (r.duckBatsmen?.includes(sel.duckBatsman)) add("bokkaboshnam");
+    
+    // Flute Babu / Gabbar
+    const bBat = playerScores[m.id]?.[sel.bestBatsman];
+    if (bBat && bBat.sixes >= 4) add("flutebabu");
+    
+    const bBowl = playerScores[m.id]?.[sel.bestBowler];
+    if (bBowl && bBowl.wickets >= 4) add("gabbar");
+
+    // Akkada Space Ledu (Unique Horse)
+    if (sel.winningHorse && sel.winningHorse === r.matchTopPlayer) {
+      let pickCount = 0;
+      Object.values(allSelections).forEach(userMap => {
+        if (userMap[m.id]?.winningHorse === sel.winningHorse) pickCount++;
+      });
+      if (pickCount === 1) add("akkadaspace");
+    }
+  }
+
+  // Dookudu check: If rank change > 3 (Placeholder check mapping)
+  if (ranksMap[username]?.change > 2) add("dookudu");
+  if (t.length <= 1) add("relangimavayya"); // Defaults
+
+  return t;
+}
+
 // ─── SCORING ENGINE ───────────────────────────────────────────────────────────
 function camelize(str) {
   const map = {"Winning Team":"winningTeam","Best Batsman":"bestBatsman","Best Bowler":"bestBowler","Powerplay Winner":"powerplayWinner","Dot-Ball Bowler":"dotBallBowler","Total Wickets":"totalWickets"};
@@ -1163,6 +1240,79 @@ function HeadToHeadContent({matches, results, allSelections, playerScores}) {
   );
 }
 
+// ─── TROPHY CABINET COMPONENT ──────────────────────────────────────────────────
+function TrophyCabinetContent({matches, results, allSelections, playerScores}) {
+  // Compute ranks to inject into calculator
+  const pScores = {};
+  FANTASY_PLAYERS.forEach(p => pScores[p] = 0);
+  matches.forEach(m => {
+    if (!results[m.id]) return;
+    FANTASY_PLAYERS.forEach(p => {
+      const s = allSelections[p.toLowerCase().replace(/\s/g,"_")]?.[m.id];
+      if (s) pScores[p] += calcPoints(s, results[m.id], playerScores[m.id]).total;
+    });
+  });
+  const rankGrid = FANTASY_PLAYERS.map(p => ({ p, s: pScores[p] })).sort((a,b)=>b.s-a.s);
+  const ranksMap = {};
+  rankGrid.forEach((obj, idx) => ranksMap[obj.p] = { rank: idx + 1, change: 0 }); // Placeholder rank change
+
+  const renderTrophyCard = (badgeDef, isEarned) => (
+    <div key={badgeDef.id} style={{
+      ...S.card, 
+      padding:"16px",
+      display:"flex", 
+      flexDirection:"column", 
+      alignItems:"center", 
+      textAlign:"center",
+      background: isEarned ? `linear-gradient(135deg, ${badgeDef.color}20, transparent)` : "rgba(255,255,255,0.02)",
+      borderColor: isEarned ? badgeDef.color : "rgba(255,255,255,0.05)",
+      opacity: isEarned ? 1 : 0.4,
+      filter: isEarned ? "none" : "grayscale(100%)",
+      transform: isEarned ? "scale(1.02)" : "scale(1)",
+      transition: "all 0.3s ease",
+      position:"relative"
+    }}>
+      <div style={{fontSize:"40px", marginBottom:"12px", filter: isEarned ? \`drop-shadow(0 0 10px ${badgeDef.color})\` : "none"}}>{badgeDef.emoji}</div>
+      <div style={{fontWeight:800, fontSize:"14px", color: isEarned ? badgeDef.color : "#64748b", marginBottom:"6px"}}>{badgeDef.label}</div>
+      <div style={{fontSize:"11px", color:"#94a3b8", lineHeight:"1.4"}}>{badgeDef.desc}</div>
+      {!isEarned && <div style={{fontSize:"9px", fontWeight:"bold", color:"#ef4444", marginTop:"10px", textTransform:"uppercase", letterSpacing:"1px"}}>🔒 Locked</div>}
+    </div>
+  );
+
+  return (
+    <div style={{display:"grid", gap:"30px"}}>
+      {rankGrid.map(({p: player}) => {
+        const username = player.toLowerCase().replace(/\s/g,"_");
+        const earnedIds = calcUserTrophies(username, matches, results, allSelections, playerScores, ranksMap);
+        
+        const hasAxe = earnedIds.includes("thaggedhele");
+        const hasFoot = earnedIds.includes("ironleg");
+        
+        return (
+          <div key={player} style={{...S.card, padding:"24px", position:"relative", overflow:"hidden"}}>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px", borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:"12px", position:"relative", zIndex:2}}>
+              <div style={{display:"flex", alignItems:"center", gap:"12px"}}>
+                <div style={{width:"40px", height:"40px", borderRadius:"50%", background:"linear-gradient(135deg, #FF8C00, #FFD700)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"bold", fontSize:"18px", color:"#000"}}>{player[0]}</div>
+                <div>
+                  <h2 style={{fontSize:"18px", fontWeight:800, margin:0}}>{player}</h2>
+                  <div style={{fontSize:"12px", color:"#fbbf24", fontWeight:600}}>{earnedIds.length} Trophies Unlocked</div>
+                </div>
+              </div>
+              <div style={{fontSize:"24px"}}>{earnedIds.length >= 6 ? "🏆🔥" : earnedIds.length > 3 ? "🏆" : "🥉"}</div>
+            </div>
+
+            <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:"16px", position:"relative", zIndex:2}}>
+              {TROPHIES.map(bad => renderTrophyCard(bad, earnedIds.includes(bad.id)))}
+            </div>
+
+            {hasAxe && <img src="/pushpa_axe_badge_1776915965067.png" alt="Pushpa Gamification Axe Trophy Render" style={{position:"absolute", top:"-5%", right:"-5%", width:"350px", opacity:0.15, transform:"rotate(10deg)", pointerEvents:"none", mixBlendMode:"screen", zIndex:1}}/>}
+            {hasFoot && <img src="/iron_leg_badge_1776915985396.png" alt="Brahmi Iron Leg Graphic Render" style={{position:"absolute", top:"-10%", right:"-5%", width:"350px", opacity:0.15, transform:"rotate(-10deg)", pointerEvents:"none", mixBlendMode:"screen", zIndex:1}}/>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── UNIFIED LEADERBOARD PAGE ─────────────────────────────────────────────────
 function LeaderboardPage({user, matches, results, allSelections, userSel, playerScores}) {
@@ -1175,12 +1325,14 @@ function LeaderboardPage({user, matches, results, allSelections, userSel, player
       <div style={{display:"flex",gap:"6px",marginBottom:"20px",borderBottom:"1px solid rgba(255,255,255,0.1)",paddingBottom:"10px",flexWrap:"wrap"}}>
         <button style={S.navBtn(tab==="board")} onClick={()=>setTab("board")}>🏆 Overall Leaderboard</button>
         <button style={S.navBtn(tab==="consolidated")} onClick={()=>setTab("consolidated")}>📈 Consolidated Score</button>
+        <button style={S.navBtn(tab==="cabinet")} onClick={()=>setTab("cabinet")}>🪓 Trophy Cabinet</button>
         <button style={S.navBtn(tab==="stats")} onClick={()=>setTab("stats")}>📊 My Performance</button>
         <button style={S.navBtn(tab==="h2h")} onClick={()=>setTab("h2h")}>⚔️ Head-to-Head</button>
       </div>
 
       {tab === "board" && <LeaderboardContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
       {tab === "consolidated" && <ConsolidatedScoreContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
+      {tab === "cabinet" && <TrophyCabinetContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
       {tab === "stats" && <MyStatsContent user={user} matches={matches} results={results} userSel={userSel} playerScores={playerScores} allSelections={allSelections} />}
       {tab === "h2h" && <HeadToHeadContent matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} />}
     </div>

@@ -2468,9 +2468,17 @@ export default function App() {
       const registration = await navigator.serviceWorker.register('/service-worker.js');
       await navigator.serviceWorker.ready;
 
+      // Convert VAPID key to Uint8Array for browser compatibility
+      const base64String = "BB9RL0jOEAwqA9FiXUTJMU3ar0ea47C49S0yidy9JU0wxz9YlJlRf2X_qRw2EK0jeP9NmEz66AvyOftc-q0mdiQ";
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: "BB9RL0jOEAwqA9FiXUTJMU3ar0ea47C49S0yidy9JU0wxz9YlJlRf2X_qRw2EK0jeP9NmEz66AvyOftc-q0mdiQ"
+        applicationServerKey: outputArray
       });
 
       const subData = JSON.parse(JSON.stringify(subscription));
@@ -2485,7 +2493,7 @@ export default function App() {
       alert("Push Notifications securely enabled! You will now receive match reminders.");
     } catch (err) {
       console.error("Push Error", err);
-      alert("Failed to enable push notifications.");
+      alert(`Failed to enable push notifications: ${err.message || "Unknown error"}`);
     }
   }, [user]);
 

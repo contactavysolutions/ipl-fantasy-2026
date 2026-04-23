@@ -138,7 +138,7 @@ function getStreakBadge(results, userSelections, matches, now) {
   if (recent.length <= 1) return { emoji: "🧊", label: "Warming Up" };
   return null;
 }
-const FANTASY_PLAYERS = ["Ani","Haren","Ganga","Jitendar","Mahesh","Nag","Naren","Navdeep","Omkar","Peddi","Praveen","Raghav","Ranga","Rohit","Sandeep","Santhosh","Soma","Sridhar K","Krishna","Naresh","Srikanth B","Prashanth","Sreeram","Santhosh Male","Ranjith","Vijay"].sort();
+const FANTASY_PLAYERS = ["Ani","Haren","Ganga","Jitendar","Mahesh","Nag","Naren","Navdeep","Omkar","Peddi","Praveen","Raghav","Ranga","Rohit","Sandeep","Santhosh","Soma","Sridhar K","Krishna","Naresh","Srikanth B","Prashanth","Sreeram","Santhosh Male","Ranjith"].sort();
 
 // ─── SCORING ENGINE ───────────────────────────────────────────────────────────
 function camelize(str) {

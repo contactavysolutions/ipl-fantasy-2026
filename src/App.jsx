@@ -152,7 +152,7 @@ const TROPHIES = [
   { id:"relangimavayya", label:"Slow Poison", desc:"Zero risk picks. Emito, antha hayiga undi.", emoji:"🐢", color:"#10b981" },
   { id:"lastbench", label:"Last Bench", desc:"Dead last in Leaderboard. Naku eem telidu mastaru.", emoji:"🛡️", color:"#374151" },
   { id:"dookudu", label:"Dookudu", desc:"Moved up 3+ ranks at once. Evadu kodithe dimma...", emoji:"🤫", color:"#3b82f6" },
-  { id:"flutebabu", label:"Sixer King", desc:"Picked a batsman hitting 4+ sixes.", emoji:"🏏", color:"#f43f5e" },
+  { id:"flutebabu", label:"Sixer King", desc:"Picked a batsman hitting >8 sixes.", emoji:"🏏", color:"#f43f5e" },
   { id:"gabbar", label:"Wicket Veta", desc:"Picked a 4-wicket haul bowler. Naa kodaka...", emoji:"🎳", color:"#0ea5e9" }
 ];
 
@@ -195,7 +195,7 @@ function calcUserTrophies(username, matches, results, allSelections, playerScore
     
     // Flute Babu / Gabbar
     const bBat = playerScores[m.id]?.[sel.bestBatsman];
-    if (bBat && bBat.sixes >= 4) add("flutebabu");
+    if (bBat && bBat.sixes > 8) add("flutebabu");
     
     const bBowl = playerScores[m.id]?.[sel.bestBowler];
     if (bBowl && bBowl.wickets >= 4) add("gabbar");

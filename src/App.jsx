@@ -1272,7 +1272,7 @@ function TrophyCabinetContent({matches, results, allSelections, playerScores}) {
       transition: "all 0.3s ease",
       position:"relative"
     }}>
-      <div style={{fontSize:"40px", marginBottom:"12px", filter: isEarned ? \`drop-shadow(0 0 10px ${badgeDef.color})\` : "none"}}>{badgeDef.emoji}</div>
+      <div style={{fontSize:"40px", marginBottom:"12px", filter: isEarned ? `drop-shadow(0 0 10px ${badgeDef.color})` : "none"}}>{badgeDef.emoji}</div>
       <div style={{fontWeight:800, fontSize:"14px", color: isEarned ? badgeDef.color : "#64748b", marginBottom:"6px"}}>{badgeDef.label}</div>
       <div style={{fontSize:"11px", color:"#94a3b8", lineHeight:"1.4"}}>{badgeDef.desc}</div>
       {!isEarned && <div style={{fontSize:"9px", fontWeight:"bold", color:"#ef4444", marginTop:"10px", textTransform:"uppercase", letterSpacing:"1px"}}>🔒 Locked</div>}

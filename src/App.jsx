@@ -1353,6 +1353,335 @@ function TrophyCabinetContent({matches, results, allSelections, playerScores}) {
   );
 }
 
+// ─── RIVALRY ARENA PAGE ───────────────────────────────────────────────────────
+const WAGER_TIERS = [25, 50, 75];
+const CHALLENGE_TYPES = [
+  {id:"savaal", label:"⚔️ Classic Savaal", desc:"1v1 direct challenge"},
+  {id:"bounty", label:"👑 Baahubali Bounty", desc:"Challenge Rank #1"},
+  {id:"arena", label:"🎲 Open Arena", desc:"Challenge anyone (max 6 accept)"},
+];
+const TOLLYWOOD_WIN_LINES = [
+  "Thaggedhe Le! {w} stole {pts} pts from {l}! 🪓",
+  "Evadu kodithe dimma tiragali. {w} took {pts} from {l}! 🤫",
+  "Naa kodaka! {w} destroyed {l} for {pts} pts! 🎳",
+  "One man army. {w} leeched {pts} from {l}! 👑",
+];
+const TOLLYWOOD_LOSE_LINES = [
+  "Iron Leg activated! {l} lost {pts} pts to {w}. 🦶",
+  "Daridram thandavam aaduthundi. {l} pays {pts} to {w}. 💀",
+  "Bokka Boshnam! {l} surrendered {pts} pts to {w}. 🦆",
+];
+const getFlairWin = (w,l,pts) => TOLLYWOOD_WIN_LINES[Math.abs((w+l).length)%TOLLYWOOD_WIN_LINES.length].replace(/{w}/g,w).replace(/{l}/g,l).replace(/{pts}/g,pts);
+const getFlairLose = (w,l,pts) => TOLLYWOOD_LOSE_LINES[Math.abs((w+l).length)%TOLLYWOOD_LOSE_LINES.length].replace(/{w}/g,w).replace(/{l}/g,l).replace(/{pts}/g,pts);
+
+function RivalryArenaPage({user, matches, results, allSelections, playerScores, challenges, onCreateChallenge, onRespondChallenge, onResolveChallenge}) {
+  const [tab, setTab] = useState("issue");
+  const [opponent, setOpponent] = useState("");
+  const [matchId, setMatchId] = useState("");
+  const [wager, setWager] = useState(50);
+  const [chalType, setChalType] = useState("savaal");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const now = new Date();
+
+  // Upcoming open matches for challenge creation
+  const openMatches = matches.filter(m => !isMatchLocked(m, now));
+
+  // Current user's total points for the minimum-threshold check
+  const myUsername = user?.username;
+  let myTotalPts = PRE_APP_SCORES[FANTASY_PLAYERS.find(p=>p.toLowerCase().replace(/\s/g,"_")===myUsername)] || 0;
+  matches.forEach(m => {
+    if (!results[m.id]) return;
+    const s = allSelections[myUsername]?.[m.id];
+    if (s) myTotalPts += calcPoints(s, results[m.id], playerScores[m.id]).total;
+  });
+
+  // Count active challenges by this user per match to enforce cap
+  const myActiveCountForMatch = (mid) => challenges.filter(c => c.challenger === myUsername && String(c.match_id) === String(mid) && (c.status === "pending" || c.status === "accepted")).length;
+
+  // Incoming challenges for current user
+  const incoming = challenges.filter(c => c.opponent === myUsername && c.status === "pending");
+
+  // Arena challenges user can accept
+  const openArena = challenges.filter(c => c.type === "arena" && c.status === "pending" && c.challenger !== myUsername);
+
+  // All challenges sorted by recency
+  const allChallenges = [...challenges].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const handleIssue = async () => {
+    if (!matchId) { setMsg("⚠️ Pick a match first!"); return; }
+    if (chalType === "savaal" && !opponent) { setMsg("⚠️ Pick your rival!"); return; }
+    if (chalType === "savaal" && opponent === myUsername) { setMsg("⚠️ You can't challenge yourself, Brahmi! 🦶"); return; }
+    if (myTotalPts < 100) { setMsg("⚠️ You need at least 100 total pts to issue a Savaal!"); return; }
+    if (myActiveCountForMatch(matchId) >= 2) { setMsg("⚠️ Max 2 challenges per match! Calm down, Pushpa."); return; }
+
+    setSaving(true); setMsg("");
+    try {
+      await onCreateChallenge({
+        match_id: parseInt(matchId),
+        challenger: myUsername,
+        opponent: chalType === "arena" ? null : (chalType === "bounty" ? null : opponent),
+        type: chalType,
+        wager: wager,
+        status: chalType === "arena" ? "pending" : "pending"
+      });
+      setMsg("✅ Challenge issued! Waiting for response...");
+      setOpponent(""); setMatchId("");
+    } catch (err) {
+      setMsg("❌ Failed: " + err.message);
+    }
+    setSaving(false);
+    setTimeout(() => setMsg(""), 4000);
+  };
+
+  const handleRespond = async (chalId, accept) => {
+    setSaving(true);
+    try {
+      await onRespondChallenge(chalId, accept ? "accepted" : "declined");
+      setMsg(accept ? "✅ Challenge accepted! Game on!" : "🐔 Challenge declined!");
+    } catch (err) {
+      setMsg("❌ Failed: " + err.message);
+    }
+    setSaving(false);
+    setTimeout(() => setMsg(""), 4000);
+  };
+
+  const getMatchLabel = (mid) => {
+    const m = matches.find(x => String(x.id) === String(mid));
+    return m ? `M${m.id}: ${m.home} vs ${m.away}` : `Match ${mid}`;
+  };
+
+  const getDisplayName = (uname) => {
+    const p = FANTASY_PLAYERS.find(fp => fp.toLowerCase().replace(/\s/g,"_") === uname);
+    return p || uname;
+  };
+
+  const renderBattleCard = (c) => {
+    const isResolved = c.status === "resolved";
+    const isDeclined = c.status === "declined";
+    const isPending = c.status === "pending";
+    const isAccepted = c.status === "accepted";
+    const isExpired = c.status === "expired";
+
+    const borderColor = isResolved ? (c.winner === myUsername ? "#4ade80" : "#ef4444")
+      : isDeclined ? "#f97316"
+      : isPending ? "#fbbf24"
+      : isAccepted ? "#3b82f6"
+      : "#374151";
+
+    const bgGlow = isResolved ? (c.winner === myUsername ? "rgba(74,222,128,0.06)" : "rgba(239,68,68,0.06)")
+      : "rgba(255,255,255,0.02)";
+
+    return (
+      <div key={c.id} style={{...S.card, borderColor, background: bgGlow, marginBottom:"16px", position:"relative", overflow:"hidden"}}>
+        {/* Type banner */}
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"16px"}}>
+          <span style={{fontSize:"11px", fontWeight:800, letterSpacing:"1.5px", textTransform:"uppercase", color: borderColor}}>
+            {c.type === "savaal" ? "⚔️ SAVAAL" : c.type === "bounty" ? "👑 BOUNTY" : "🎲 ARENA"} — {getMatchLabel(c.match_id)}
+          </span>
+          <span style={{fontSize:"10px", padding:"3px 8px", borderRadius:"12px", fontWeight:700,
+            background: isResolved ? "rgba(74,222,128,0.12)" : isDeclined ? "rgba(249,115,22,0.12)" : isPending ? "rgba(251,191,36,0.12)" : isAccepted ? "rgba(59,130,246,0.12)" : "rgba(55,65,81,0.2)",
+            color: isResolved ? "#4ade80" : isDeclined ? "#f97316" : isPending ? "#fbbf24" : isAccepted ? "#60a5fa" : "#6b7280"
+          }}>
+            {isResolved ? "RESOLVED" : isDeclined ? "DECLINED" : isPending ? "PENDING" : isAccepted ? "ACCEPTED" : "EXPIRED"}
+          </span>
+        </div>
+
+        {/* Players */}
+        <div style={{display:"flex", alignItems:"center", justifyContent:"center", gap:"20px", marginBottom:"16px"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{width:"44px", height:"44px", borderRadius:"50%", background:"linear-gradient(135deg, #ef4444, #f97316)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"bold", fontSize:"18px", color:"#fff", margin:"0 auto 6px"}}>{getDisplayName(c.challenger)[0]}</div>
+            <div style={{fontSize:"13px", fontWeight:700}}>{getDisplayName(c.challenger)}</div>
+            {isResolved && <div style={{fontSize:"16px", fontWeight:800, color: c.winner === c.challenger ? "#4ade80" : "#f87171", marginTop:"4px"}}>{c.challenger_score} pts</div>}
+          </div>
+          <div style={{fontSize:"28px", fontWeight:900, color:"#fbbf24", textShadow:"0 0 15px rgba(251,191,36,0.4)"}}>🆚</div>
+          <div style={{textAlign:"center"}}>
+            <div style={{width:"44px", height:"44px", borderRadius:"50%", background:"linear-gradient(135deg, #3b82f6, #8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"bold", fontSize:"18px", color:"#fff", margin:"0 auto 6px"}}>{c.opponent ? getDisplayName(c.opponent)[0] : "?"}</div>
+            <div style={{fontSize:"13px", fontWeight:700}}>{c.opponent ? getDisplayName(c.opponent) : "Open Challenge"}</div>
+            {isResolved && c.opponent && <div style={{fontSize:"16px", fontWeight:800, color: c.winner === c.opponent ? "#4ade80" : "#f87171", marginTop:"4px"}}>{c.opponent_score} pts</div>}
+          </div>
+        </div>
+
+        {/* Wager */}
+        <div style={{textAlign:"center", marginBottom:"12px"}}>
+          <span style={{fontSize:"22px", fontWeight:900, color:"#FFD700", textShadow:"0 0 10px rgba(255,215,0,0.3)"}}>💰 {c.wager} PTS</span>
+        </div>
+
+        {/* Flair text for resolved */}
+        {isResolved && c.winner && (
+          <div style={{textAlign:"center", padding:"12px", borderRadius:"12px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", fontSize:"13px", fontWeight:600, fontStyle:"italic", color: c.winner === myUsername ? "#4ade80" : "#f87171"}}>
+            {c.winner === c.challenger
+              ? getFlairWin(getDisplayName(c.challenger), getDisplayName(c.opponent), c.wager)
+              : getFlairLose(getDisplayName(c.challenger), getDisplayName(c.opponent), c.wager)}
+          </div>
+        )}
+
+        {/* Declined chickened out */}
+        {isDeclined && (
+          <div style={{textAlign:"center", padding:"10px", borderRadius:"12px", background:"rgba(249,115,22,0.06)", fontSize:"13px", fontWeight:600, color:"#f97316"}}>
+            🐔 {getDisplayName(c.opponent)} chickened out of {getDisplayName(c.challenger)}'s challenge!
+          </div>
+        )}
+
+        {/* Accept/Decline buttons for incoming */}
+        {isPending && c.opponent === myUsername && (
+          <div style={{display:"flex", gap:"12px", justifyContent:"center", marginTop:"8px"}}>
+            <button disabled={saving} onClick={() => handleRespond(c.id, true)} style={{...S.btn("primary"), padding:"10px 28px", fontSize:"15px"}}>Accept ⚔️</button>
+            <button disabled={saving} onClick={() => handleRespond(c.id, false)} style={{...S.btn("danger"), padding:"10px 28px", fontSize:"15px", border:"1px solid rgba(239,68,68,0.3)"}}>Decline 🐔</button>
+          </div>
+        )}
+
+        {/* Arena accept button */}
+        {isPending && c.type === "arena" && c.challenger !== myUsername && !c.opponent && (
+          <div style={{textAlign:"center", marginTop:"8px"}}>
+            <button disabled={saving} onClick={() => handleRespond(c.id, true)} style={{...S.btn("primary"), padding:"10px 28px", fontSize:"15px"}}>Accept Challenge ⚔️</button>
+          </div>
+        )}
+
+        {isExpired && (
+          <div style={{textAlign:"center", fontSize:"12px", color:"#6b7280", marginTop:"6px"}}>⏰ Challenge expired. Opponent did not respond in time.</div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={S.page}>
+      <h1 style={S.h1}>⚔️ Rivalry Arena</h1>
+      <p style={{color:"#64748b", fontSize:"13px", marginBottom:"20px"}}>Place real leaderboard points on the line. Winner takes all.</p>
+
+      {msg && <div style={{...S.card, background:"rgba(255,140,0,0.06)", borderColor:"rgba(255,140,0,0.2)", marginBottom:"16px", fontSize:"14px", fontWeight:600, color:"#fbbf24", textAlign:"center"}}>{msg}</div>}
+
+      {/* Tab nav */}
+      <div style={{display:"flex", gap:"6px", marginBottom:"20px", borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:"10px", flexWrap:"wrap"}}>
+        <button style={S.navBtn(tab==="issue")} onClick={() => setTab("issue")}>🪓 Issue Savaal</button>
+        <button style={S.navBtn(tab==="incoming")} onClick={() => setTab("incoming")}>📥 Incoming {incoming.length > 0 ? `(${incoming.length})` : ""}</button>
+        <button style={S.navBtn(tab==="feed")} onClick={() => setTab("feed")}>🔥 Battle Feed</button>
+      </div>
+
+      {/* === ISSUE SAVAAL TAB === */}
+      {tab === "issue" && (
+        <div style={{...S.card, padding:"24px"}}>
+          <div style={S.sectionTitle}>Create a Challenge</div>
+
+          {/* Challenge type */}
+          <div style={{marginBottom:"16px"}}>
+            <label style={S.label}>Challenge Type</label>
+            <div style={{display:"flex", gap:"8px", flexWrap:"wrap"}}>
+              {CHALLENGE_TYPES.map(ct => (
+                <button key={ct.id} onClick={() => setChalType(ct.id)} style={{
+                  padding:"10px 16px", borderRadius:"10px", cursor:"pointer", fontSize:"13px", fontWeight:chalType===ct.id ? 700 : 400,
+                  background: chalType===ct.id ? "rgba(255,140,0,0.15)" : "rgba(255,255,255,0.04)",
+                  color: chalType===ct.id ? "#FFD700" : "#94a3b8",
+                  border: chalType===ct.id ? "1px solid rgba(255,140,0,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                  transition:"all 0.2s", fontFamily:"'Inter',sans-serif"
+                }}>
+                  {ct.label}
+                  <div style={{fontSize:"10px", marginTop:"2px", color:"#64748b"}}>{ct.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={S.grid2}>
+            {/* Opponent (only for savaal) */}
+            {chalType === "savaal" && (
+              <div>
+                <label style={S.label}>Your Rival</label>
+                <select style={S.select} value={opponent} onChange={e => setOpponent(e.target.value)}>
+                  <option value="">-- Pick your enemy --</option>
+                  {FANTASY_PLAYERS.filter(p => p.toLowerCase().replace(/\s/g,"_") !== myUsername).map(p => (
+                    <option key={p} value={p.toLowerCase().replace(/\s/g,"_")}>{p}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Match */}
+            <div>
+              <label style={S.label}>Match</label>
+              <select style={S.select} value={matchId} onChange={e => setMatchId(e.target.value)}>
+                <option value="">-- Pick a match --</option>
+                {openMatches.map(m => (
+                  <option key={m.id} value={m.id}>M{m.id}: {m.home} vs {m.away} ({m.date})</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Wager */}
+            <div>
+              <label style={S.label}>Wager (Points)</label>
+              <div style={{display:"flex", gap:"8px"}}>
+                {WAGER_TIERS.map(w => (
+                  <button key={w} onClick={() => setWager(w)} style={{
+                    flex:1, padding:"12px", borderRadius:"10px", cursor:"pointer", fontSize:"16px", fontWeight:800,
+                    background: wager===w ? "linear-gradient(135deg,#FF8C00,#FFD700)" : "rgba(255,255,255,0.04)",
+                    color: wager===w ? "#000" : "#94a3b8",
+                    border: wager===w ? "none" : "1px solid rgba(255,255,255,0.08)",
+                    transition:"all 0.2s", fontFamily:"'Inter',sans-serif"
+                  }}>
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Issue button */}
+          <div style={{marginTop:"24px", textAlign:"center"}}>
+            <button disabled={saving} onClick={handleIssue} style={{
+              ...S.btn("primary"),
+              padding:"14px 48px",
+              fontSize:"16px",
+              fontWeight:800,
+              letterSpacing:"1px",
+              boxShadow:"0 4px 20px rgba(255,140,0,0.3)",
+              opacity: saving ? 0.6 : 1
+            }}>
+              {saving ? "Issuing..." : "CHALLENGE! 🪓"}
+            </button>
+            {myTotalPts < 100 && <div style={{fontSize:"11px", color:"#ef4444", marginTop:"8px"}}>⚠️ You need at least 100 total pts to issue challenges.</div>}
+          </div>
+        </div>
+      )}
+
+      {/* === INCOMING TAB === */}
+      {tab === "incoming" && (
+        <div>
+          {incoming.length === 0 && (
+            <div style={{...S.card, textAlign:"center", color:"#64748b", padding:"40px"}}>
+              <div style={{fontSize:"48px", marginBottom:"12px"}}>😴</div>
+              <div>No incoming challenges right now. Bored? Go issue one!</div>
+            </div>
+          )}
+          {incoming.map(c => renderBattleCard(c))}
+
+          {/* Open Arena challenges user can accept */}
+          {openArena.length > 0 && (
+            <>
+              <div style={{...S.sectionTitle, marginTop:"24px", marginBottom:"12px"}}>🎲 Open Arena Challenges</div>
+              {openArena.map(c => renderBattleCard(c))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* === BATTLE FEED TAB === */}
+      {tab === "feed" && (
+        <div>
+          {allChallenges.length === 0 && (
+            <div style={{...S.card, textAlign:"center", color:"#64748b", padding:"40px"}}>
+              <div style={{fontSize:"48px", marginBottom:"12px"}}>🏟️</div>
+              <div>No battles yet. Be the first to issue a Savaal!</div>
+            </div>
+          )}
+          {allChallenges.map(c => renderBattleCard(c))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── UNIFIED LEADERBOARD PAGE ─────────────────────────────────────────────────
 function LeaderboardPage({user, matches, results, allSelections, userSel, playerScores}) {
   const [tab, setTab] = useState("board");
@@ -2410,6 +2739,7 @@ export default function App() {
   const [allSelections,setAllSelections]=useState({});
   const [insights,setInsights]=useState({});
   const [playerScores,setPlayerScores]=useState({});
+  const [challenges,setChallenges]=useState([]);
   const [loading,setLoading]=useState(true);
 
   const userSel=user?(allSelections[user.username]||{}):{};
@@ -2422,8 +2752,10 @@ export default function App() {
       supa.query("selections",{select:"*"}),
       supa.query("match_insights",{select:"*"}).catch(()=>[]),
       supa.query("player_scores",{select:"*"}).catch(()=>[]),
-    ]).then(([matchData,resultData,selData,insightsData,playerScoresData])=>{
+      supa.query("challenges",{select:"*"}).catch(()=>[]),
+    ]).then(([matchData,resultData,selData,insightsData,playerScoresData,challengesData])=>{
       setMatches(matchData||[]);
+      setChallenges(challengesData||[]);
       const resMap={};
       const parseMulti = (val) => val ? String(val).split(',').map(s=>s.trim()) : [];
       (resultData||[]).forEach(r=>{resMap[r.match_id]={winningTeam:r.winning_team,runMargin:r.run_margin,wicketMargin:r.wicket_margin,topScorers:parseMulti(r.top_scorer),topScorerRuns:r.top_scorer_runs,bestBowlers:parseMulti(r.best_bowler),bestBowlerPoints:r.best_bowler_points,powerplayWinner:r.powerplay_winner,powerplayScore:r.powerplay_score,powerplayDiff:r.powerplay_diff,dotBallLeaders:parseMulti(r.dot_ball_leader),dotBalls:r.dot_balls,totalWickets:r.total_wickets,wicketsRange:r.wickets_range,duckBatsmen:r.duck_batsmen||[],matchTopPlayer:r.match_top_player,matchBottomPlayer:r.match_bottom_player};});
@@ -2535,6 +2867,24 @@ export default function App() {
     setAllSelections(prev=>({...prev,[username]:{...(prev[username]||{}),[matchId]:sel}}));
   },[]);
 
+  // ─── RIVALRY ARENA CALLBACKS ──────────────────────────────────────────────────
+  const onCreateChallenge=useCallback(async(chal)=>{
+    const result = await supa.upsert("challenges",chal,"id");
+    setChallenges(prev=>[...prev,...result]);
+  },[]);
+
+  const onRespondChallenge=useCallback(async(chalId, newStatus)=>{
+    const { data: res, error } = await supabase.from("challenges").update({status:newStatus}).eq("id",chalId).select();
+    if (error) throw error;
+    setChallenges(prev=>prev.map(c=>c.id===chalId?{...c,status:newStatus}:c));
+  },[]);
+
+  const onResolveChallenge=useCallback(async(chalId, winner, challengerScore, opponentScore)=>{
+    const { data: res, error } = await supabase.from("challenges").update({status:"resolved",winner,challenger_score:challengerScore,opponent_score:opponentScore}).eq("id",chalId).select();
+    if (error) throw error;
+    setChallenges(prev=>prev.map(c=>c.id===chalId?{...c,status:"resolved",winner,challenger_score:challengerScore,opponent_score:opponentScore}:c));
+  },[]);
+
   const onSavePlayerScores=useCallback(async(matchId, scoresArray)=>{
     await Promise.all(scoresArray.map(s => 
       supa.upsert("player_scores", {
@@ -2562,6 +2912,7 @@ export default function App() {
     {id:"matches",icon:"🏏",label:"Matches"},
     {id:"selections",icon:"📋",label:"Picks"},
     {id:"live",icon:"🔴",label:"Live"},
+    {id:"rivals",icon:"⚔️",label:"Rivals"},
     {id:"leaderboard",icon:"🏆",label:"Board"},
     ...(user?.isAdmin?[{id:"admin",icon:"⚙️",label:"Admin"}]:[]),
   ];
@@ -2645,6 +2996,7 @@ export default function App() {
           :page==="leaderboard"?<LeaderboardPage user={user} matches={matches} results={results} allSelections={allSelections} userSel={userSel} playerScores={playerScores}/>
           :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true} isAdmin={user.isAdmin}/></div>
           :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} user={user}/>
+          :page==="rivals"?<RivalryArenaPage user={user} matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} challenges={challenges} onCreateChallenge={onCreateChallenge} onRespondChallenge={onRespondChallenge} onResolveChallenge={onResolveChallenge}/>
           :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :null
         }

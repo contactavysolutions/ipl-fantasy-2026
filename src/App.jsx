@@ -1554,6 +1554,7 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
 
       {/* Tab nav */}
       <div style={{display:"flex", gap:"6px", marginBottom:"20px", borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:"10px", flexWrap:"wrap"}}>
+        <button style={S.navBtn(tab==="howto")} onClick={() => setTab("howto")}>❓ How To</button>
         <button style={S.navBtn(tab==="issue")} onClick={() => setTab("issue")}>🪓 Issue Savaal</button>
         <button style={S.navBtn(tab==="incoming")} onClick={() => setTab("incoming")}>📥 Incoming {incoming.length > 0 ? `(${incoming.length})` : ""}</button>
         <button style={S.navBtn(tab==="feed")} onClick={() => setTab("feed")}>🔥 Battle Feed</button>
@@ -1676,6 +1677,99 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
             </div>
           )}
           {allChallenges.map(c => renderBattleCard(c))}
+        </div>
+      )}
+
+      {/* === HOW TO TAB === */}
+      {tab === "howto" && (
+        <div style={{display:"grid", gap:"16px"}}>
+          {/* Intro */}
+          <div style={{...S.card, padding:"24px", textAlign:"center", background:"linear-gradient(135deg, rgba(255,140,0,0.08), rgba(255,215,0,0.04))", borderColor:"rgba(255,140,0,0.2)"}}>
+            <div style={{fontSize:"48px", marginBottom:"12px"}}>⚔️</div>
+            <h2 style={{fontSize:"20px", fontWeight:800, margin:"0 0 8px", color:"#FFD700"}}>Welcome to the Rivalry Arena</h2>
+            <p style={{color:"#94a3b8", fontSize:"14px", lineHeight:"1.6", margin:0}}>Think you're better than your friend? Prove it.<br/>Put your <strong style={{color:"#fbbf24"}}>real leaderboard points</strong> on the line. Winner takes all.</p>
+          </div>
+
+          {/* Step by step */}
+          <div style={{...S.card, padding:"24px"}}>
+            <div style={S.sectionTitle}>How It Works — 5 Simple Steps</div>
+            {[
+              {step:"1", icon:"📱", title:"Open Rivals", desc:"Tap the ⚔️ Rivals tab at the bottom of the app."},
+              {step:"2", icon:"🎯", title:"Pick Your Challenge", desc:"Choose from Classic Savaal (1v1), Baahubali Bounty (challenge Rank #1), or Open Arena (challenge anyone)."},
+              {step:"3", icon:"👤", title:"Choose Your Rival & Match", desc:"Select who you want to challenge and which upcoming match you want to bet on."},
+              {step:"4", icon:"💰", title:"Set Your Wager", desc:"Pick how many points to risk: 25, 50, or 75 pts. Then hit CHALLENGE! 🪓"},
+              {step:"5", icon:"🏆", title:"Wait for Results", desc:"After the match, whoever scores more fantasy points on that match STEALS the wagered points from the loser."},
+            ].map(s => (
+              <div key={s.step} style={{display:"flex", gap:"14px", alignItems:"flex-start", padding:"14px 0", borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{minWidth:"40px", height:"40px", borderRadius:"50%", background:"linear-gradient(135deg,#FF8C00,#FFD700)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:"16px", color:"#000"}}>{s.step}</div>
+                <div>
+                  <div style={{fontWeight:700, fontSize:"14px", marginBottom:"4px"}}>{s.icon} {s.title}</div>
+                  <div style={{fontSize:"13px", color:"#94a3b8", lineHeight:"1.5"}}>{s.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Challenge types */}
+          <div style={{...S.card, padding:"24px"}}>
+            <div style={S.sectionTitle}>3 Ways to Challenge</div>
+            <div style={{display:"grid", gap:"12px"}}>
+              {[
+                {icon:"⚔️", title:"Classic Savaal", desc:"Direct 1v1. Pick a specific person. Both of you score on the same match. Higher scorer takes the wager.", color:"#ef4444"},
+                {icon:"👑", title:"Baahubali Bounty", desc:"Challenge whoever is Rank #1 on the leaderboard. If you beat the king, you earn the bounty. High risk, high reward.", color:"#FFD700"},
+                {icon:"🎲", title:"Open Arena", desc:"Post a challenge to the entire league. Up to 6 players can accept. You take on all of them individually — beat them and take their points!", color:"#8b5cf6"},
+              ].map(ct => (
+                <div key={ct.title} style={{...S.card, padding:"16px", display:"flex", gap:"14px", alignItems:"flex-start", borderColor:ct.color+"40", background:ct.color+"08"}}>
+                  <div style={{fontSize:"28px", lineHeight:1}}>{ct.icon}</div>
+                  <div>
+                    <div style={{fontWeight:700, fontSize:"14px", color:ct.color, marginBottom:"4px"}}>{ct.title}</div>
+                    <div style={{fontSize:"13px", color:"#94a3b8", lineHeight:"1.5"}}>{ct.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Rules */}
+          <div style={{...S.card, padding:"24px"}}>
+            <div style={S.sectionTitle}>Rules & Safety Nets</div>
+            <div style={{display:"grid", gap:"10px"}}>
+              {[
+                {icon:"💰", rule:"Wager Amounts", detail:"Choose from 25, 50, or 75 points per challenge."},
+                {icon:"🔒", rule:"Max 2 Per Match", detail:"You can issue a maximum of 2 challenges per match to keep things balanced."},
+                {icon:"📊", rule:"100 Pt Minimum", detail:"You need at least 100 total leaderboard points to issue a challenge."},
+                {icon:"⏰", rule:"Deadline", detail:"Challenges expire automatically if not accepted before the match starts."},
+                {icon:"🤝", rule:"Ties", detail:"If both players score the exact same, all wagered points are returned. No blood."},
+                {icon:"🐔", rule:"Declined?", detail:"The entire league sees when someone chickens out of a challenge!"},
+              ].map(r => (
+                <div key={r.rule} style={{display:"flex", gap:"12px", alignItems:"center", padding:"10px 12px", borderRadius:"10px", background:"rgba(255,255,255,0.03)"}}>
+                  <span style={{fontSize:"20px"}}>{r.icon}</span>
+                  <div>
+                    <span style={{fontWeight:700, fontSize:"13px", color:"#e2e8f0"}}>{r.rule}: </span>
+                    <span style={{fontSize:"13px", color:"#94a3b8"}}>{r.detail}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Example walkthrough */}
+          <div style={{...S.card, padding:"24px", background:"rgba(74,222,128,0.04)", borderColor:"rgba(74,222,128,0.15)"}}>
+            <div style={S.sectionTitle}>📖 Example Walkthrough</div>
+            <div style={{fontSize:"14px", lineHeight:"1.8", color:"#cbd5e1"}}>
+              <div style={{marginBottom:"12px"}}><strong style={{color:"#fbbf24"}}>1.</strong> Srikanth opens the Rivals tab and picks <strong>⚔️ Classic Savaal</strong></div>
+              <div style={{marginBottom:"12px"}}><strong style={{color:"#fbbf24"}}>2.</strong> He selects <strong>Praveen</strong> as his rival, picks <strong>M35 (MI vs CSK)</strong>, and wagers <strong>50 pts</strong></div>
+              <div style={{marginBottom:"12px"}}><strong style={{color:"#fbbf24"}}>3.</strong> He hits <strong>CHALLENGE! 🪓</strong> — Praveen sees it in his Incoming tab</div>
+              <div style={{marginBottom:"12px"}}><strong style={{color:"#fbbf24"}}>4.</strong> Praveen clicks <strong>Accept ⚔️</strong> — it's game on!</div>
+              <div style={{marginBottom:"12px"}}><strong style={{color:"#fbbf24"}}>5.</strong> Match ends. Srikanth scores <strong style={{color:"#4ade80"}}>180 pts</strong>, Praveen scores <strong style={{color:"#f87171"}}>120 pts</strong></div>
+              <div style={{padding:"14px", borderRadius:"12px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", textAlign:"center", fontStyle:"italic", fontWeight:600, color:"#4ade80", marginTop:"8px"}}>🪓 "Thaggedhe Le! Srikanth stole 50 pts from Praveen!"<br/><span style={{fontSize:"12px", color:"#94a3b8", fontStyle:"normal"}}>Srikanth: +50 on leaderboard | Praveen: -50 on leaderboard</span></div>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div style={{textAlign:"center", padding:"20px 0"}}>
+            <button onClick={() => setTab("issue")} style={{...S.btn("primary"), padding:"14px 48px", fontSize:"16px", fontWeight:800, letterSpacing:"1px", boxShadow:"0 4px 20px rgba(255,140,0,0.3)"}}>Issue Your First Savaal! 🪓</button>
+          </div>
         </div>
       )}
     </div>

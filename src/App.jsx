@@ -1396,6 +1396,20 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
     if (s) myTotalPts += calcPoints(s, results[m.id], playerScores[m.id]).total;
   });
 
+  // Bug fix: compute Rank #1 for Baahubali Bounty challenges
+  const rank1 = FANTASY_PLAYERS.map(p => {
+    const uname = p.toLowerCase().replace(/\s/g, "_");
+    const uSel = allSelections[uname] || {};
+    let total = PRE_APP_SCORES[p] || 0;
+    matches.forEach(m => {
+      if (!results[m.id]) return;
+      const s = uSel[m.id];
+      if (s) total += calcPoints(s, results[m.id], playerScores[m.id]).total;
+    });
+    return { uname, name: p, total };
+  }).sort((a, b) => b.total - a.total)[0];
+  const rank1Username = rank1?.uname;
+
   // Count active challenges by this user per match to enforce cap
   const myActiveCountForMatch = (mid) => challenges.filter(c => c.challenger === myUsername && String(c.match_id) === String(mid) && (c.status === "pending" || c.status === "accepted")).length;
 
@@ -1412,6 +1426,11 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
     if (!matchId) { setMsg("⚠️ Pick a match first!"); return; }
     if (chalType === "savaal" && !opponent) { setMsg("⚠️ Pick your rival!"); return; }
     if (chalType === "savaal" && opponent === myUsername) { setMsg("⚠️ You can't challenge yourself, Brahmi! 🦶"); return; }
+    // Bug fix: validate bounty target exists and is not the current user
+    if (chalType === "bounty") {
+      if (!rank1Username) { setMsg("⚠️ Could not determine Rank #1!"); return; }
+      if (rank1Username === myUsername) { setMsg("⚠️ You ARE Rank #1! Issue a Savaal instead. 👑"); return; }
+    }
     if (myTotalPts < 100) { setMsg("⚠️ You need at least 100 total pts to issue a Savaal!"); return; }
     if (myActiveCountForMatch(matchId) >= 2) { setMsg("⚠️ Max 2 challenges per match! Calm down, Pushpa."); return; }
 
@@ -1420,7 +1439,8 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
       await onCreateChallenge({
         match_id: parseInt(matchId),
         challenger: myUsername,
-        opponent: chalType === "arena" ? null : (chalType === "bounty" ? null : opponent),
+        // Bug fix: bounty uses rank1Username as the opponent target
+        opponent: chalType === "arena" ? null : (chalType === "bounty" ? rank1Username : opponent),
         type: chalType,
         wager: wager,
         status: chalType === "arena" ? "pending" : "pending"
@@ -1434,16 +1454,39 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
     setTimeout(() => setMsg(""), 4000);
   };
 
-  const handleRespond = async (chalId, accept) => {
+  const handleRespond = async (chalId, accept, isArena=false) => {
     setSaving(true);
     try {
-      await onRespondChallenge(chalId, accept ? "accepted" : "declined");
+      // Bug fix: pass myUsername as opponent when accepting an arena challenge
+      await onRespondChallenge(chalId, accept ? "accepted" : "declined", isArena && accept ? myUsername : null);
       setMsg(accept ? "✅ Challenge accepted! Game on!" : "🐔 Challenge declined!");
     } catch (err) {
       setMsg("❌ Failed: " + err.message);
     }
     setSaving(false);
     setTimeout(() => setMsg(""), 4000);
+  };
+
+  // Bug fix: compute fantasy scores for both players and resolve the challenge
+  const handleSettle = async (c) => {
+    setSaving(true);
+    try {
+      const res = results[c.match_id];
+      const pScores = playerScores[c.match_id] || {};
+      const chalSel = allSelections[c.challenger]?.[c.match_id];
+      const oppSel = c.opponent ? allSelections[c.opponent]?.[c.match_id] : null;
+      const challengerScore = chalSel ? calcPoints(chalSel, res, pScores).total : 0;
+      const opponentScore = oppSel ? calcPoints(oppSel, res, pScores).total : 0;
+      const winner = challengerScore > opponentScore ? c.challenger
+        : opponentScore > challengerScore ? c.opponent
+        : null; // tie — no winner, wager returned
+      await onResolveChallenge(c.id, winner, challengerScore, opponentScore);
+      setMsg(winner ? `⚔️ Battle settled! ${getDisplayName(winner)} wins!` : "🤝 It's a tie — wager returned!");
+    } catch (e) {
+      setMsg("❌ Failed to settle: " + e.message);
+    }
+    setSaving(false);
+    setTimeout(() => setMsg(""), 5000);
   };
 
   const getMatchLabel = (mid) => {
@@ -1534,7 +1577,16 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
         {/* Arena accept button */}
         {isPending && c.type === "arena" && c.challenger !== myUsername && !c.opponent && (
           <div style={{textAlign:"center", marginTop:"8px"}}>
-            <button disabled={saving} onClick={() => handleRespond(c.id, true)} style={{...S.btn("primary"), padding:"10px 28px", fontSize:"15px"}}>Accept Challenge ⚔️</button>
+            {/* Bug fix: pass isArena=true so opponent field is set on accept */}
+            <button disabled={saving} onClick={() => handleRespond(c.id, true, true)} style={{...S.btn("primary"), padding:"10px 28px", fontSize:"15px"}}>Accept Challenge ⚔️</button>
+          </div>
+        )}
+
+        {/* Bug fix: Settle Battle button for accepted challenges once match result is in */}
+        {isAccepted && (c.challenger === myUsername || c.opponent === myUsername) && results[c.match_id] && (
+          <div style={{textAlign:"center", marginTop:"8px"}}>
+            <button disabled={saving} onClick={() => handleSettle(c)} style={{...S.btn("primary"), padding:"10px 28px", fontSize:"15px", background:"linear-gradient(135deg, #4ade80, #22c55e)", color:"#000"}}>⚔️ Settle Battle</button>
+            <div style={{fontSize:"11px", color:"#64748b", marginTop:"6px"}}>Match result is in — settle to record final scores</div>
           </div>
         )}
 
@@ -2963,14 +3015,19 @@ export default function App() {
 
   // ─── RIVALRY ARENA CALLBACKS ──────────────────────────────────────────────────
   const onCreateChallenge=useCallback(async(chal)=>{
-    const result = await supa.upsert("challenges",chal,"id");
-    setChallenges(prev=>[...prev,...result]);
+    // Bug fix: use insert (not upsert on id) so Supabase generates a new PK
+    const { data: result, error } = await supabase.from("challenges").insert(chal).select();
+    if (error) throw error;
+    setChallenges(prev=>[...prev,...(result||[])]);
   },[]);
 
-  const onRespondChallenge=useCallback(async(chalId, newStatus)=>{
-    const { data: res, error } = await supabase.from("challenges").update({status:newStatus}).eq("id",chalId).select();
+  const onRespondChallenge=useCallback(async(chalId, newStatus, opponentUsername=null)=>{
+    // Bug fix: also update opponent field when accepting an arena challenge
+    const updateData = {status:newStatus};
+    if (opponentUsername) updateData.opponent = opponentUsername;
+    const { data: res, error } = await supabase.from("challenges").update(updateData).eq("id",chalId).select();
     if (error) throw error;
-    setChallenges(prev=>prev.map(c=>c.id===chalId?{...c,status:newStatus}:c));
+    setChallenges(prev=>prev.map(c=>c.id===chalId?{...c,status:newStatus,...(opponentUsername?{opponent:opponentUsername}:{})}:c));
   },[]);
 
   const onResolveChallenge=useCallback(async(chalId, winner, challengerScore, opponentScore)=>{

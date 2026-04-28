@@ -201,7 +201,7 @@ function calcUserTrophies(username, matches, results, allSelections, playerScore
     if (bBowl && bBowl.wickets >= 4) add("gabbar", `Match ${m.id}: ${sel.bestBowler} (${bBowl.wickets} Wickets!)`);
 
     // Akkada Space Ledu (Unique Horse)
-    if (sel.winningHorse && sel.winningHorse === r.matchTopPlayer) {
+    if (sel.winningHorse && (r.matchTopPlayers||[]).includes(sel.winningHorse)) {
       let pickCount = 0;
       Object.values(allSelections).forEach(userMap => {
         if (userMap[m.id]?.winningHorse === sel.winningHorse) pickCount++;
@@ -240,8 +240,8 @@ function calcPoints(sel, res, pScores = {}) {
   bd.dotBallBowler = getDB(sel.dotBallBowler) + ((r.dotBallLeaders||[]).includes(sel.dotBallBowler) ? 50 : 0);
   bd.totalWickets = sel.totalWickets===r.wicketsRange ? 100 : 0;
   bd.duckBatsman = (r.duckBatsmen||[]).includes(sel.duckBatsman) ? 100 : 0;
-  bd.winningHorse = sel.winningHorse&&r.matchTopPlayer&&sel.winningHorse===r.matchTopPlayer ? 100 : 0;
-  bd.losingHorse = sel.losingHorse&&r.matchBottomPlayer&&sel.losingHorse===r.matchBottomPlayer ? 100 : 0;
+  bd.winningHorse = sel.winningHorse&&(r.matchTopPlayers||[]).length>0&&(r.matchTopPlayers||[]).includes(sel.winningHorse) ? 100 : 0;
+  bd.losingHorse = sel.losingHorse&&(r.matchBottomPlayers||[]).length>0&&(r.matchBottomPlayers||[]).includes(sel.losingHorse) ? 100 : 0;
   if (sel.doubleCategory&&bd[camelize(sel.doubleCategory)]!==undefined) {
     const key = camelize(sel.doubleCategory);
     bd[key] = bd[key]*2;
@@ -855,8 +855,8 @@ function MyStatsContent({user,matches,results,userSel,playerScores,allSelections
           {label:"Dot-Ball Bowler", key:"dotBallBowler",  resKey:(r)=>(r?.dotBallLeaders||[])[0]},
           {label:"Total Wickets",   key:"totalWickets",   resKey:(r)=>r?.wicketsRange},
           {label:"Duck Batsman",    key:"duckBatsman",    resKey:(r)=>(r?.duckBatsmen||[])[0]},
-          {label:"Winning Horse",   key:"winningHorse",   resKey:(r)=>r?.matchTopPlayer},
-          {label:"Losing Horse",    key:"losingHorse",    resKey:(r)=>r?.matchBottomPlayer},
+          {label:"Winning Horse",   key:"winningHorse",   resKey:(r)=>(r?.matchTopPlayers||[]).join(", ")},
+          {label:"Losing Horse",    key:"losingHorse",    resKey:(r)=>(r?.matchBottomPlayers||[]).join(", ")},
         ];
         // Only count matches that have results
         const scoredMatches = activeMatches.filter(m=>results[m.id]);
@@ -2388,12 +2388,14 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
   const [adminTab,setAdminTab]=useState("results");
   const [selectedMatch,setSelectedMatch]=useState(null);
   const [now]=useState(new Date());
-  const EMPTY_FORM={winningTeam:"",winByRuns:true,runMargin:"",wicketMargin:"",topScorers:[],topScorerRuns:"",bestBowlers:[],bestBowlerPoints:"",powerplayWinner:"",powerplayScore:"",powerplayDiff:"",dotBallLeaders:[],dotBalls:"",totalWickets:"",wicketsRange:"",duckBatsmen:[],matchTopPlayer:"",matchBottomPlayer:""};
+  const EMPTY_FORM={winningTeam:"",winByRuns:true,runMargin:"",wicketMargin:"",topScorers:[],topScorerRuns:"",bestBowlers:[],bestBowlerPoints:"",powerplayWinner:"",powerplayScore:"",powerplayDiff:"",dotBallLeaders:[],dotBalls:"",totalWickets:"",wicketsRange:"",duckBatsmen:[],matchTopPlayers:[],matchBottomPlayers:[]};
   const [form,setForm]=useState(EMPTY_FORM);
   const [duckBatamenSelected,setDuckBatmenSelected]=useState("");
   const [topScorerSelected,setTopScorerSelected]=useState("");
   const [bestBowlerSelected,setBestBowlerSelected]=useState("");
   const [dotBallLeaderSelected,setDotBallLeaderSelected]=useState("");
+  const [winningHorseSelected,setWinningHorseSelected]=useState("");
+  const [losingHorseSelected,setLosingHorseSelected]=useState("");
   const [saved,setSaved]=useState(false);
   const [saving,setSaving]=useState(false);
   const [autofillLoading,setAutofillLoading]=useState(false);
@@ -2405,7 +2407,7 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
     const ex=results[m.id];
     if(ex){
       const numFields=["runMargin","wicketMargin","topScorerRuns","bestBowlerPoints","powerplayScore","powerplayDiff","dotBalls","totalWickets"];
-      const converted={...EMPTY_FORM,...ex,duckBatsmen:ex.duckBatsmen||[],topScorers:ex.topScorers||[],bestBowlers:ex.bestBowlers||[],dotBallLeaders:ex.dotBallLeaders||[]};
+      const converted={...EMPTY_FORM,...ex,duckBatsmen:ex.duckBatsmen||[],topScorers:ex.topScorers||[],bestBowlers:ex.bestBowlers||[],dotBallLeaders:ex.dotBallLeaders||[],matchTopPlayers:ex.matchTopPlayers||[],matchBottomPlayers:ex.matchBottomPlayers||[]};
       numFields.forEach(f=>{if(converted[f]!=null)converted[f]=String(converted[f]);});
       setForm(converted);
     }else{setForm(EMPTY_FORM);}
@@ -2413,6 +2415,8 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
     setTopScorerSelected("");
     setBestBowlerSelected("");
     setDotBallLeaderSelected("");
+    setWinningHorseSelected("");
+    setLosingHorseSelected("");
     setSaved(false);
     setAutofillError(null);
   };
@@ -2639,8 +2643,44 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
 
                 <div style={S.sectionTitle}>Horse Results</div>
                 <div style={{...S.grid2,marginBottom:"16px"}}>
-                  <IField label="🏆 Match Top Scorer (fantasy player)" value={form.matchTopPlayer} onChange={v=>setF("matchTopPlayer",v)} opts={FANTASY_PLAYERS}/>
-                  <IField label="💀 Match Bottom Scorer (fantasy player)" value={form.matchBottomPlayer} onChange={v=>setF("matchBottomPlayer",v)} opts={FANTASY_PLAYERS}/>
+                  <div style={{gridColumn:"1/-1",display:"flex",gap:"16px",flexWrap:"wrap"}}>
+                    <div style={{flex:1,minWidth:"200px"}}>
+                      <label style={S.label}>🏆 Winning Horses (Match Top Scorers)</label>
+                      <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+                        <select style={{...S.select,flex:1}} value={winningHorseSelected} onChange={e=>setWinningHorseSelected(e.target.value)}>
+                          <option value="">-- Select Player --</option>
+                          {FANTASY_PLAYERS.filter(p=>!(form.matchTopPlayers||[]).includes(p)).map(p=><option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <button style={{...S.btn("primary"),padding:"10px 16px"}} onClick={()=>{if(winningHorseSelected){setF("matchTopPlayers",[...(form.matchTopPlayers||[]),winningHorseSelected]);setWinningHorseSelected("");}}}>+ Add</button>
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+                        {(form.matchTopPlayers||[]).map(b=>(
+                          <span key={b} style={{background:"rgba(255,215,0,0.2)",border:"1px solid rgba(255,215,0,0.4)",borderRadius:"6px",padding:"6px 12px",fontSize:"13px",display:"flex",alignItems:"center",gap:"8px"}}>
+                            {b}
+                            <button onClick={()=>setF("matchTopPlayers",(form.matchTopPlayers||[]).filter(x=>x!==b))} style={{background:"transparent",border:"none",cursor:"pointer",color:"#ff6b6b",fontSize:"16px",padding:"0",lineHeight:"1"}}>✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{flex:1,minWidth:"200px"}}>
+                      <label style={S.label}>💀 Losing Horses (Match Bottom Scorers)</label>
+                      <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+                        <select style={{...S.select,flex:1}} value={losingHorseSelected} onChange={e=>setLosingHorseSelected(e.target.value)}>
+                          <option value="">-- Select Player --</option>
+                          {FANTASY_PLAYERS.filter(p=>!(form.matchBottomPlayers||[]).includes(p)).map(p=><option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <button style={{...S.btn("primary"),padding:"10px 16px"}} onClick={()=>{if(losingHorseSelected){setF("matchBottomPlayers",[...(form.matchBottomPlayers||[]),losingHorseSelected]);setLosingHorseSelected("");}}}>+ Add</button>
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+                        {(form.matchBottomPlayers||[]).map(b=>(
+                          <span key={b} style={{background:"rgba(239,68,68,0.2)",border:"1px solid rgba(239,68,68,0.4)",borderRadius:"6px",padding:"6px 12px",fontSize:"13px",display:"flex",alignItems:"center",gap:"8px"}}>
+                            {b}
+                            <button onClick={()=>setF("matchBottomPlayers",(form.matchBottomPlayers||[]).filter(x=>x!==b))} style={{background:"transparent",border:"none",cursor:"pointer",color:"#ff6b6b",fontSize:"16px",padding:"0",lineHeight:"1"}}>✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{display:"flex",gap:"12px",alignItems:"center",flexWrap:"wrap"}}>
@@ -2854,8 +2894,8 @@ function LiveGrid({matches, results, allSelections, playerScores, user}) {
                       <div>{(row.bd.winningHorse||0)+(row.bd.losingHorse||0)}</div>
                       {isExpanded && (
                         <div style={{fontSize:"10px",marginTop:"2px",textAlign:"right"}}>
-                          {row.sel.winningHorse && <div style={{color:res?.matchTopPlayer&&row.sel.winningHorse===res.matchTopPlayer?"#4ade80":res?.matchTopPlayer?"#f87171":"#94a3b8"}}>🏆 {row.sel.winningHorse}</div>}
-                          {row.sel.losingHorse  && <div style={{color:res?.matchBottomPlayer&&row.sel.losingHorse===res.matchBottomPlayer?"#4ade80":res?.matchBottomPlayer?"#f87171":"#94a3b8"}}>💀 {row.sel.losingHorse}</div>}
+                          {row.sel.winningHorse && <div style={{color:(res?.matchTopPlayers||[]).length>0?(res.matchTopPlayers.includes(row.sel.winningHorse)?"#4ade80":"#f87171"):"#94a3b8"}}>🏆 {row.sel.winningHorse}</div>}
+                          {row.sel.losingHorse  && <div style={{color:(res?.matchBottomPlayers||[]).length>0?(res.matchBottomPlayers.includes(row.sel.losingHorse)?"#4ade80":"#f87171"):"#94a3b8"}}>💀 {row.sel.losingHorse}</div>}
                         </div>
                       )}
                     </td>
@@ -2915,7 +2955,7 @@ export default function App() {
       setChallenges(challengesData||[]);
       const resMap={};
       const parseMulti = (val) => val ? String(val).split(',').map(s=>s.trim()) : [];
-      (resultData||[]).forEach(r=>{resMap[r.match_id]={winningTeam:r.winning_team,runMargin:r.run_margin,wicketMargin:r.wicket_margin,topScorers:parseMulti(r.top_scorer),topScorerRuns:r.top_scorer_runs,bestBowlers:parseMulti(r.best_bowler),bestBowlerPoints:r.best_bowler_points,powerplayWinner:r.powerplay_winner,powerplayScore:r.powerplay_score,powerplayDiff:r.powerplay_diff,dotBallLeaders:parseMulti(r.dot_ball_leader),dotBalls:r.dot_balls,totalWickets:r.total_wickets,wicketsRange:r.wickets_range,duckBatsmen:r.duck_batsmen||[],matchTopPlayer:r.match_top_player,matchBottomPlayer:r.match_bottom_player};});
+      (resultData||[]).forEach(r=>{resMap[r.match_id]={winningTeam:r.winning_team,runMargin:r.run_margin,wicketMargin:r.wicket_margin,topScorers:parseMulti(r.top_scorer),topScorerRuns:r.top_scorer_runs,bestBowlers:parseMulti(r.best_bowler),bestBowlerPoints:r.best_bowler_points,powerplayWinner:r.powerplay_winner,powerplayScore:r.powerplay_score,powerplayDiff:r.powerplay_diff,dotBallLeaders:parseMulti(r.dot_ball_leader),dotBalls:r.dot_balls,totalWickets:r.total_wickets,wicketsRange:r.wickets_range,duckBatsmen:r.duck_batsmen||[],matchTopPlayers:parseMulti(r.match_top_player),matchBottomPlayers:parseMulti(r.match_bottom_player)};});
       setResults(resMap);
       const selMap={};
       (selData||[]).forEach(s=>{
@@ -3015,7 +3055,7 @@ export default function App() {
   },[user]);
 
   const onSaveResult=useCallback(async(matchId,res)=>{
-    await supa.upsert("results",{match_id:matchId,winning_team:res.winningTeam,win_by_runs:res.winByRuns,run_margin:res.runMargin,wicket_margin:res.wicketMargin,top_scorer:(res.topScorers||[]).join(','),top_scorer_runs:res.topScorerRuns,best_bowler:(res.bestBowlers||[]).join(','),best_bowler_points:res.bestBowlerPoints,powerplay_winner:res.powerplayWinner,powerplay_score:res.powerplayScore,powerplay_diff:res.powerplayDiff,dot_ball_leader:(res.dotBallLeaders||[]).join(','),dot_balls:res.dotBalls,total_wickets:res.totalWickets,wickets_range:res.wicketsRange,duck_batsmen:res.duckBatsmen,match_top_player:res.matchTopPlayer,match_bottom_player:res.matchBottomPlayer},"match_id");
+    await supa.upsert("results",{match_id:matchId,winning_team:res.winningTeam,win_by_runs:res.winByRuns,run_margin:res.runMargin,wicket_margin:res.wicketMargin,top_scorer:(res.topScorers||[]).join(','),top_scorer_runs:res.topScorerRuns,best_bowler:(res.bestBowlers||[]).join(','),best_bowler_points:res.bestBowlerPoints,powerplay_winner:res.powerplayWinner,powerplay_score:res.powerplayScore,powerplay_diff:res.powerplayDiff,dot_ball_leader:(res.dotBallLeaders||[]).join(','),dot_balls:res.dotBalls,total_wickets:res.totalWickets,wickets_range:res.wicketsRange,duck_batsmen:res.duckBatsmen,match_top_player:(res.matchTopPlayers||[]).join(","),match_bottom_player:(res.matchBottomPlayers||[]).join(",")},"match_id");
     setResults(prev=>({...prev,[matchId]:res}));
   },[]);
 

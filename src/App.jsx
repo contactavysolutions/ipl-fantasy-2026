@@ -2939,8 +2939,19 @@ export default function App() {
       supa.query("match_insights",{select:"*"}).catch(()=>[]),
       supa.query("player_scores",{select:"*"}).catch(()=>[]),
       supa.query("challenges",{select:"*"}).catch(()=>[]),
-    ]).then(([matchData,resultData,selData,insightsData,playerScoresData,challengesData])=>{
+    ]).then(async ([matchData,resultData,selData,insightsData,playerScoresData,challengesData])=>{
       setMatches(matchData||[]);
+      // Auto-expire pending challenges whose match has now locked or started
+      const _now = new Date();
+      const _pending = (challengesData||[]).filter(c => c.status === "pending");
+      const _toExpire = _pending.filter(c => {
+        const m = (matchData||[]).find(x => String(x.id) === String(c.match_id));
+        return m && isMatchLocked(m, _now);
+      });
+      if (_toExpire.length > 0) {
+        await supabase.from("challenges").update({status:"expired"}).in("id", _toExpire.map(c=>c.id)).catch(()=>{});
+        _toExpire.forEach(c => { c.status = "expired"; });
+      }
       setChallenges(challengesData||[]);
       const resMap={};
       const parseMulti = (val) => val ? String(val).split(',').map(s=>s.trim()) : [];

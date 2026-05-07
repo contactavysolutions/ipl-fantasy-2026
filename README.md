@@ -37,10 +37,14 @@ src/
 
 api/                 # Vercel Serverless Functions
 ├── cron-reminders.mjs           # Push Notification Broadcast Router
-├── generate-insights.mjs        # Daily Vercel Cron Job for AI insights
-├── manual-update-insights.mjs   # API Endpoint for manual trigger
+├── generate-insights.mjs        # Legacy Vercel Cron Job (superseded by Edge Function)
+├── manual-update-insights.mjs   # API Endpoint for manual admin trigger
 └── lib/
-    └── insights.mjs             # Shared AI logic targeting Groq (Llama 3)
+    └── insights.mjs             # Shared AI logic (Tavily + Groq Llama 3)
+
+supabase/functions/
+└── generate-insights/
+    └── index.ts                 # Supabase Edge Function (primary cron runner)
 
 public/
 └── service-worker.js            # Foreground interceptor for native Push Notification Banners
@@ -308,19 +312,33 @@ The system deploys 6 fully animated analytical pie charts dynamically tracking l
 
 ---
 
-### 11. **AI Match Previews & Insights**
-**File**: `api/lib/insights.mjs`
+### 11. **AI Match Previews & Insights (3-Layer Intelligence Pipeline)**
+**Files**: `api/lib/insights.mjs` + `supabase/functions/generate-insights/index.ts`
 
-The application provides fully automated, AI-generated match previews for upcoming games to assist fantasy players in making informed decisions exactly when they need it.
-- **Tavily Web Scraping**: The backend intercepts live internet chatter, pitch reports, and sports journalism leading up to the game.
-- **Groq Llama-3 Structuring**: Meta's advanced LLM consumes the scraped unstructured data alongside strictly anchored official IPL Rosters to ensure zero player hallucination.
-- **Data Points Delivered**: 
-  - Probable Playing XI 
-  - In-Form Batsmen & Bowlers
-  - Pitch Report & Venue Analysis
-  - Head-to-Head History
-  - Key Matchups & Prediction Summary
-- **Automation**: Vercel cron jobs (`/api/generate-insights`) automatically refresh the previews. Admins can also trigger an intelligence sweep manually from the **AI Insights** tab in the Admin panel.
+The application deploys a fully automated, three-layer AI-powered match preview engine designed to eliminate hallucinations and deliver factually grounded insights.
+
+#### Architecture: Tavily-Primary Pipeline
+| Layer | Source | Purpose |
+|-------|--------|---------|
+| **Layer 1 (Primary)** | Tavily Web Search | 5 targeted searches per match: team form & scorecards, playing XI & injuries, pitch reports, match previews, head-to-head stats |
+| **Layer 2 (Supplementary)** | Supabase Database | Basic win/loss records and head-to-head results from the `results` table |
+| **Layer 3 (Structuring)** | Groq LLM (Llama 3.3 70B) | Consumes all data and outputs structured JSON, strictly constrained to official IPL 2026 squad lists to prevent player hallucination |
+
+#### Anti-Hallucination Measures
+- **Squad Constraint**: All 10 team rosters (250 players) are hardcoded. The AI is instructed that any player name not on the list is **invalid**.
+- **Web-Grounded Stats**: Player form data comes from real internet sources (Cricbuzz, ESPN, etc.) via Tavily, not from the LLM's training data.
+- **DB Verification**: Win/loss records from our own database cross-verify web claims.
+
+#### Data Points Delivered
+- Probable Playing XI (11 per team, squad-validated)
+- In-Form Batsmen & Bowlers (with real scores from recent matches)
+- Pitch Report & Venue Analysis (from web news)
+- Head-to-Head History (DB + web combined)
+- Key Matchups & Prediction Summary
+
+#### Automation
+- **Primary**: Supabase Edge Function (`generate-insights`) triggered every 6 hours via `pg_cron`. Processes up to 3 matches per run for games within 72 hours of lock time. Insights auto-refresh if stale (>12 hours old).
+- **Manual**: Admins can trigger on-demand generation from the **AI Insights** tab in the Admin panel, which calls the Vercel endpoint (`/api/manual-update-insights`).
 
 ---
 
@@ -464,8 +482,14 @@ npx vercel build   # Builds production outputs locally
 - **Vercel**: App is deployed seamlessly using Vercel Zero Config.
   - SPA routing is managed via `vercel.json` (fallback all non-API logic to `index.html`).
   - **Serverless API**: Code inside the `api/` directory is automatically exposed securely as Vercel Serverless Functions.
-  - **Chron Jobs**: Configured inside `vercel.json` to hit `/api/generate-insights` on a set hourly schedule (`0 * * * *`).
   - Automatic deploys trigger on GitHub branch pushes.
+- **Supabase Edge Functions**: AI insight generation runs as a Deno-based Edge Function on Supabase infrastructure.
+  - **Cron Schedule**: `pg_cron` fires every 6 hours (`0 */6 * * *`), calling the Edge Function via `pg_net`.
+  - **No Vercel Limits**: Eliminates Vercel Hobby tier's 1-invocation-per-day cron restriction.
+
+### Branching Strategy
+- **`main`**: Production branch. Auto-deploys to Vercel production.
+- **`test`**: Staging branch. Auto-deploys to Vercel preview. Uses an isolated Supabase test database (`ipl-fantasy-2026-test`) for safe development.
 
 ---
 
@@ -641,6 +665,8 @@ Venky, Naresh, Srikanth B, Prashanth, Sreeram, Santhosh Male
 ---
 
 ## 📌 Version History
+- **v1.5.0** (May 7, 2026): **AI Insights Overhaul & Staging Infrastructure**. Rebuilt the entire AI insight generation pipeline with a 3-layer Tavily-primary architecture: (1) Tavily web search for real-time player stats and scorecards, (2) DB win/loss records as supplementary verification, (3) Groq Llama 3.3 70B for structured output with hardcoded squad constraints. Migrated cron execution from Vercel (1/day limit) to Supabase Edge Functions with `pg_cron` running every 6 hours. Established isolated staging environment with separate Supabase test database and Vercel preview deployments on the `test` branch.
+- **v1.4.0** (April 29, 2026): **Rivalry Arena & Admin Enhancements**. Added automatic expiration logic for pending Rivalry challenges when a match locks or starts, including robust error handling. Upgraded the Admin Results form to natively support array multi-select for the Winning Horse and Losing Horse fields.
 - **v1.3.0** (April 20, 2026): Auth Overhaul & AI Web Scraping Migration! Completely deprecated the insecure custom credential methodology, replacing it seamlessly with enterprise-grade **Supabase Auth** mechanisms bound tight to strict Row-Level Security profiles. Additionally implemented the **AI Match Results Auto-Fill** integration hooking into Groq (`llama-3.3-70b-versatile`) and Tavily Search APIs natively mapped into Admin GUI workflows designed with rigorous hallucination guardrails.
 - **v1.2.0** (April 14, 2026): Swapped AI pipeline completely off Google Gemini to Meta Llama 3 via Groq API routing standardizations to definitively eradicate hardware timeouts. Engineered complete Web Push Notification capability, leveraging native Service Worker encryption hooks tightly bound to Supabase `pg_cron` mathematical trigger cycles. Designed a dynamic `<LiveDistributions>` dashboard utilizing `recharts` to mathematically plot global Pick Distributions synchronously.
 - **v1.1.0** (April 12, 2026): Handled array structures for tracking multiple tied players natively for Top Scorer, Best Bowler, and Dot Ball metrics. Inserted Wicket Bonus milestones.
@@ -659,5 +685,5 @@ For questions or issues, refer to:
 
 ---
 
-**Last Updated**: April 20, 2026  
+**Last Updated**: May 7, 2026  
 **Status**: ✅ Production Ready

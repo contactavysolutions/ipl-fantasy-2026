@@ -1,24 +1,16 @@
 // api/lib/insights.mjs
-// 3-Layer AI Insights: DB Form Data + Tavily Web Search + Groq LLM Structuring
+// Tavily-Primary AI Insights: Web Search (primary) + DB Win/Loss (supplementary) + Groq LLM
 
 const SUPABASE_URL = "https://olewyqrxgwjjjspeonon.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sZXd5cXJ4Z3dqampzcGVvbm9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MzM3NjMsImV4cCI6MjA5MDMwOTc2M30.mbY5GR8eZu7BH1UD0Yq2B_l5dr4bPB-RkYXa-vgRwYI";
 
 const TEAMS = {
-  RCB: "Royal Challengers Bengaluru",
-  MI: "Mumbai Indians",
-  CSK: "Chennai Super Kings",
-  KKR: "Kolkata Knight Riders",
-  SRH: "Sunrisers Hyderabad",
-  DC: "Delhi Capitals",
-  GT: "Gujarat Titans",
-  RR: "Rajasthan Royals",
-  PBKS: "Punjab Kings",
-  LSG: "Lucknow Super Giants",
+  RCB: "Royal Challengers Bengaluru", MI: "Mumbai Indians", CSK: "Chennai Super Kings",
+  KKR: "Kolkata Knight Riders", SRH: "Sunrisers Hyderabad", DC: "Delhi Capitals",
+  GT: "Gujarat Titans", RR: "Rajasthan Royals", PBKS: "Punjab Kings", LSG: "Lucknow Super Giants",
 };
 
 // ─── AUTHORITATIVE IPL 2026 SQUADS ───────────────────────────────────────────
-// These are the ONLY valid player names. Injected into the AI prompt to prevent hallucination.
 const SQUADS_2026 = {
   CSK: ["Ruturaj Gaikwad","MS Dhoni","Sanju Samson","Kartik Sharma","Urvil Patel","Dewald Brevis","Ayush Mhatre","Sarfaraz Khan","Shivam Dube","Matthew Short","Jamie Overton","Ramakrishna Ghosh","Anshul Kamboj","Prashant Veer","Aman Khan","Zak Foulkes","Khaleel Ahmed","Mukesh Choudhary","Gurjapneet Singh","Matt Henry","Spencer Johnson","Shreyas Gopal","Rahul Chahar","Noor Ahmad","Akeal Hosein"],
   DC:  ["Axar Patel","KL Rahul","Prithvi Shaw","David Miller","Tristan Stubbs","Abhishek Porel","Karun Nair","Sameer Rizvi","Ashutosh Sharma","Mitchell Starc","T. Natarajan","Mukesh Kumar","Dushmantha Chameera","Lungi Ngidi","Kyle Jamieson","Nitish Rana","Kuldeep Yadav","Ajay Mandal","Tripurana Vijay","Madhav Tiwari","Pathum Nissanka","Sahil Parakh","Vipraj Nigam","Ben Duckett","Auqib Nabi"],
@@ -45,135 +37,68 @@ export async function supabaseUpsert(table, data) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=match_id`, {
     method: "POST",
     headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=representation",
+      apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation",
     },
     body: JSON.stringify(data),
   });
   return res.json();
 }
 
-// ─── LAYER 1: Fetch real form data from our own database ─────────────────────
+// ─── DB: Only for basic win/loss records (supplementary) ─────────────────────
 
-async function fetchTeamFormFromDB(teamCode) {
+async function fetchWinLossFromDB(teamCode) {
   try {
-    // Get all results and matches
-    const [allResults, allMatches] = await Promise.all([
-      supabaseQuery("results", "select=match_id,winning_team,top_scorer,best_bowler,top_scorer_runs,total_wickets,run_margin,wicket_margin,win_by_runs&order=match_id.desc"),
+    const [results, matches] = await Promise.all([
+      supabaseQuery("results", "select=match_id,winning_team&order=match_id.desc"),
       supabaseQuery("matches", "select=id,home,away,date&order=id.desc")
     ]);
-
-    if (!Array.isArray(allResults) || !Array.isArray(allMatches)) return "";
-
-    const matchMap = {};
-    allMatches.forEach(m => { matchMap[m.id] = m; });
-
-    // Filter for this team's matches
-    const teamResults = allResults.filter(r => {
-      const m = matchMap[r.match_id];
-      return m && (m.home === teamCode || m.away === teamCode);
-    }).slice(0, 5);
-
-    if (teamResults.length === 0) return "No recent match data available.";
-
-    return teamResults.map(r => {
-      const m = matchMap[r.match_id];
-      const opponent = m.home === teamCode ? m.away : m.home;
-      const won = r.winning_team === teamCode;
-      const margin = r.win_by_runs ? `${r.run_margin || '?'} runs` : `${r.wicket_margin || '?'} wickets`;
-      return `M${r.match_id} (${m.date}): ${won ? 'WON' : 'LOST'} vs ${opponent} by ${margin} | Top Scorer: ${r.top_scorer || 'N/A'}${r.top_scorer_runs ? ` (${r.top_scorer_runs} runs)` : ''} | Best Bowler: ${r.best_bowler || 'N/A'} | Wickets in match: ${r.total_wickets || 'N/A'}`;
-    }).join("\n");
-  } catch (e) {
-    console.log(`⚠️ Error fetching ${teamCode} form from DB:`, e.message);
-    return "";
-  }
+    if (!Array.isArray(results) || !Array.isArray(matches)) return "";
+    const mm = {};
+    matches.forEach(m => { mm[m.id] = m; });
+    const team = results.filter(r => { const m = mm[r.match_id]; return m && (m.home === teamCode || m.away === teamCode); }).slice(0, 5);
+    if (!team.length) return "No results yet.";
+    const wins = team.filter(r => r.winning_team === teamCode).length;
+    const summary = team.map(r => { const m = mm[r.match_id]; const opp = m.home === teamCode ? m.away : m.home; return `${r.winning_team === teamCode ? 'W' : 'L'} vs ${opp} (${m.date})`; }).join(", ");
+    return `${wins}W-${team.length - wins}L in last ${team.length}: ${summary}`;
+  } catch { return ""; }
 }
 
-async function fetchH2HFromDB(team1, team2) {
+async function fetchH2HFromDB(t1, t2) {
   try {
-    const [allResults, allMatches] = await Promise.all([
-      supabaseQuery("results", "select=match_id,winning_team,top_scorer,best_bowler&order=match_id.desc"),
+    const [results, matches] = await Promise.all([
+      supabaseQuery("results", "select=match_id,winning_team&order=match_id.desc"),
       supabaseQuery("matches", "select=id,home,away,date&order=id.desc")
     ]);
-
-    if (!Array.isArray(allResults) || !Array.isArray(allMatches)) return "";
-
-    const matchMap = {};
-    allMatches.forEach(m => { matchMap[m.id] = m; });
-
-    const h2h = allResults.filter(r => {
-      const m = matchMap[r.match_id];
-      return m && ((m.home === team1 && m.away === team2) || (m.home === team2 && m.away === team1));
-    });
-
-    if (h2h.length === 0) return "No head-to-head matches this season yet.";
-
-    return h2h.map(r => {
-      const m = matchMap[r.match_id];
-      return `M${r.match_id} (${m.date}): ${m.home} vs ${m.away} — Winner: ${r.winning_team}, Top Scorer: ${r.top_scorer || 'N/A'}, Best Bowler: ${r.best_bowler || 'N/A'}`;
-    }).join("\n");
-  } catch (e) {
-    console.log(`⚠️ Error fetching H2H from DB:`, e.message);
-    return "";
-  }
+    if (!Array.isArray(results) || !Array.isArray(matches)) return "";
+    const mm = {};
+    matches.forEach(m => { mm[m.id] = m; });
+    const h2h = results.filter(r => { const m = mm[r.match_id]; return m && ((m.home === t1 && m.away === t2) || (m.home === t2 && m.away === t1)); });
+    if (!h2h.length) return "No H2H matches this season.";
+    return h2h.map(r => { const m = mm[r.match_id]; return `${m.date}: ${m.home} vs ${m.away} - Winner: ${r.winning_team}`; }).join("; ");
+  } catch { return ""; }
 }
 
-// ─── LAYER 2: Tavily web search for real-time context ────────────────────────
+// ─── Tavily: PRIMARY source for all player stats & news ──────────────────────
 
 async function tavilySearch(query, tavilyKey) {
   if (!tavilyKey) return "";
   try {
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tavilyKey}` },
-      body: JSON.stringify({
-        query,
-        topic: "news",
-        search_depth: "basic",
-        max_results: 3,
-        time_range: "week",
-        include_answer: true,
-        include_raw_content: false,
-        country: "india",
-      }),
-      signal: AbortSignal.timeout(8000)
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilyKey}` },
+      body: JSON.stringify({ query, topic: "news", search_depth: "basic", max_results: 5, time_range: "week", include_answer: true, include_raw_content: false, country: "india" }),
+      signal: AbortSignal.timeout(10000)
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.log(`⚠️ Tavily error: ${err?.detail || res.status}`);
-      return "";
-    }
+    if (!res.ok) return "";
     const data = await res.json();
     const answer = data.answer || "";
     const snippets = (data.results || []).map(r => `[${r.title}] ${r.content}`).join("\n");
     return [answer, snippets].filter(Boolean).join("\n\n");
-  } catch (e) {
-    console.log(`⚠️ Tavily search failed: ${e.message}`);
-    return "";
-  }
+  } catch { return ""; }
 }
 
-async function fetchWebContext(homeTeam, awayTeam, homeFull, awayFull, tavilyKey) {
-  if (!tavilyKey) {
-    console.log("⚠️ TAVILY_API_KEY not set — skipping web search");
-    return { homeNews: "", awayNews: "", pitchNews: "" };
-  }
-
-  console.log(`🔍 Tavily: fetching live context for ${homeTeam} vs ${awayTeam}...`);
-
-  const [homeNews, awayNews, pitchNews] = await Promise.all([
-    tavilySearch(`${homeFull} IPL 2026 recent form playing XI team news injury updates`, tavilyKey),
-    tavilySearch(`${awayFull} IPL 2026 recent form playing XI team news injury updates`, tavilyKey),
-    tavilySearch(`${homeFull} vs ${awayFull} IPL 2026 pitch report venue conditions`, tavilyKey),
-  ]);
-
-  console.log(`📰 Tavily returned: home=${homeNews.length}c, away=${awayNews.length}c, pitch=${pitchNews.length}c`);
-  return { homeNews, awayNews, pitchNews };
-}
-
-// ─── LAYER 3: Groq LLM to structure all data into insights ──────────────────
+// ─── Main: Generate Insights ─────────────────────────────────────────────────
 
 export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
   const keysInput = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
@@ -187,28 +112,22 @@ export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
   const homeFull = TEAMS[homeTeam] || homeTeam;
   const awayFull = TEAMS[awayTeam] || awayTeam;
 
-  // ── Layer 1: Fetch real form data from our database ──
-  console.log(`📊 Fetching real form data from DB for ${homeTeam} & ${awayTeam}...`);
-  let homeForm = "", awayForm = "", h2hData = "";
-  try {
-    [homeForm, awayForm, h2hData] = await Promise.all([
-      fetchTeamFormFromDB(homeTeam),
-      fetchTeamFormFromDB(awayTeam),
-      fetchH2HFromDB(homeTeam, awayTeam)
-    ]);
-  } catch (e) {
-    console.log("⚠️ DB fetch failed, continuing with web data only:", e.message);
-  }
+  // ── Tavily: 5 targeted web searches (PRIMARY source) ──
+  console.log(`🔍 Tavily: searching for ${homeTeam} vs ${awayTeam}...`);
+  const [homeForm, awayForm, pitchData, matchPreview, h2hWeb] = await Promise.all([
+    tavilySearch(`${homeFull} IPL 2026 last 5 matches results scorecard top performers batsmen bowlers`, tavilyKey),
+    tavilySearch(`${awayFull} IPL 2026 last 5 matches results scorecard top performers batsmen bowlers`, tavilyKey),
+    tavilySearch(`${homeFull} vs ${awayFull} IPL 2026 pitch report venue conditions weather`, tavilyKey),
+    tavilySearch(`${homeFull} vs ${awayFull} IPL 2026 match preview probable playing XI team news injuries`, tavilyKey),
+    tavilySearch(`${homeFull} vs ${awayFull} IPL 2026 head to head record stats`, tavilyKey),
+  ]);
+  console.log(`📰 Tavily: home=${homeForm.length}c away=${awayForm.length}c pitch=${pitchData.length}c preview=${matchPreview.length}c h2h=${h2hWeb.length}c`);
 
-  // ── Layer 2: Fetch live web context via Tavily ──
-  let webContext = { homeNews: "", awayNews: "", pitchNews: "" };
-  try {
-    webContext = await fetchWebContext(homeTeam, awayTeam, homeFull, awayFull, tavilyKey);
-  } catch (e) {
-    console.log("⚠️ Tavily fetch failed, continuing with DB data only:", e.message);
-  }
+  // ── DB: basic win/loss records (supplementary) ──
+  const [homeWL, awayWL, h2hDB] = await Promise.all([
+    fetchWinLossFromDB(homeTeam), fetchWinLossFromDB(awayTeam), fetchH2HFromDB(homeTeam, awayTeam)
+  ]);
 
-  // ── Layer 3: Build prompt and call Groq ──
   const homeSquad = SQUADS_2026[homeTeam] || [];
   const awaySquad = SQUADS_2026[awayTeam] || [];
 
@@ -216,145 +135,72 @@ export async function generateInsights(homeTeam, awayTeam, matchDate, matchId) {
 
 Match: ${homeFull} (${homeTeam}) vs ${awayFull} (${awayTeam}) on ${matchDate}, IPL 2026.
 
-═══════════════════════════════════════════════════════════
-VERIFIED FACTS FROM OUR DATABASE (USE THESE AS GROUND TRUTH):
-═══════════════════════════════════════════════════════════
+OFFICIAL IPL 2026 SQUADS (ONLY use players from these lists for Probable XI):
+${homeTeam}: ${homeSquad.join(", ")}
+${awayTeam}: ${awaySquad.join(", ")}
 
-${homeTeam} LAST 5 MATCH RESULTS:
-${homeForm || "No data available yet."}
+WIN/LOSS RECORD FROM DATABASE:
+${homeTeam}: ${homeWL || "N/A"}
+${awayTeam}: ${awayWL || "N/A"}
+H2H this season: ${h2hDB || "N/A"}
 
-${awayTeam} LAST 5 MATCH RESULTS:
-${awayForm || "No data available yet."}
+RECENT PERFORMANCE DATA FROM WEB (PRIMARY SOURCE):
 
-HEAD-TO-HEAD THIS SEASON:
-${h2hData || "No head-to-head matches this season yet."}
+${homeTeam} Recent Form & Scorecards:
+${homeForm.substring(0, 2000) || "No data found."}
 
-═══════════════════════════════════════════════════════════
-OFFICIAL IPL 2026 SQUADS (ONLY use players from these lists):
-═══════════════════════════════════════════════════════════
+${awayTeam} Recent Form & Scorecards:
+${awayForm.substring(0, 2000) || "No data found."}
 
-${homeTeam} Squad: ${homeSquad.join(", ")}
-${awayTeam} Squad: ${awaySquad.join(", ")}
+Match Preview & Team News:
+${matchPreview.substring(0, 1500) || "No preview found."}
 
-═══════════════════════════════════════════════════════════
-LATEST NEWS FROM THE WEB:
-═══════════════════════════════════════════════════════════
+Pitch Report & Venue:
+${pitchData.substring(0, 1000) || "No pitch data found."}
 
-${homeTeam} News:
-${(webContext.homeNews || "").substring(0, 1500) || "No recent news found."}
+Head-to-Head from Web:
+${h2hWeb.substring(0, 800) || "No H2H data found."}
 
-${awayTeam} News:
-${(webContext.awayNews || "").substring(0, 1500) || "No recent news found."}
-
-Pitch & Venue:
-${(webContext.pitchNews || "").substring(0, 1000) || "No pitch report found."}
-
-═══════════════════════════════════════════════════════════
 INSTRUCTIONS:
-═══════════════════════════════════════════════════════════
+1. PROBABLE XI: Pick exactly 11 per team ONLY from squad lists above. Any name not listed is WRONG.
+2. FORM BATSMEN/BOWLERS: Use the web data above for comprehensive stats. Cite real scores/figures.
+3. PITCH REPORT: Use web data. Be specific about conditions.
+4. HEAD TO HEAD: Combine web + database records.
+5. KEY MATCHUPS: Based on in-form players from web data.
+6. PREDICTION: Based on all data above.
 
-Using the VERIFIED FACTS above as your primary source and the web news as supplementary context:
-
-1. PROBABLE PLAYING XI: Pick exactly 11 players for each team ONLY from the squad lists above. Consider recent form from the database results and any team news from the web. Any name not in the squad list is WRONG.
-2. IN-FORM BATSMEN: Base this on the ACTUAL top scorers from the database results above. Reference the specific matches and runs scored. Do NOT make up statistics.
-3. IN-FORM BOWLERS: Base this on the ACTUAL best bowlers from the database results above. Reference specific performances. Do NOT make up statistics.
-4. PITCH REPORT: Use web news data if available, otherwise give a general analysis based on the venue.
-5. HEAD TO HEAD: Use the database H2H data above. Do NOT invent past results that are not in the data.
-6. KEY MATCHUPS: Based on the actual in-form players identified from the database.
-7. PREDICTION: Based on recent form from database + web context.
-
-Return ONLY a valid JSON object with exactly these keys:
-{
-  "home_probable_xi": ["Full Name 1", ...11 names],
-  "away_probable_xi": ["Full Name 1", ...11 names],
-  "home_form_batsmen": "2-3 sentences referencing actual recent performances from the database",
-  "away_form_batsmen": "2-3 sentences referencing actual recent performances from the database",
-  "home_form_bowlers": "2-3 sentences referencing actual recent performances from the database",
-  "away_form_bowlers": "2-3 sentences referencing actual recent performances from the database",
-  "pitch_report": "2-3 sentences about pitch and venue conditions",
-  "head_to_head": "Summary of this season's encounters between these teams",
-  "key_matchups": "3-4 specific player vs player matchups to watch",
-  "prediction_summary": "2-3 sentences with prediction and reasoning"
-}
+Return ONLY valid JSON:
+{"home_probable_xi":[...11],"away_probable_xi":[...11],"home_form_batsmen":"...","away_form_batsmen":"...","home_form_bowlers":"...","away_form_bowlers":"...","pitch_report":"...","head_to_head":"...","key_matchups":"...","prediction_summary":"..."}
 Do not include any other text or markdown formatting.`;
 
   // Call Groq with fallback models
-  const models = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant"
-  ];
-
+  const models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
   let lastError = "";
 
   for (const apiKey of apiKeys) {
     for (const model of models) {
       console.log(`📡 Generating with Groq model ${model}...`);
-
       try {
         const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            messages: [{ role: "user", content: prompt }],
-            model: model,
-            temperature: 0.4,
-            response_format: { type: "json_object" }
-          }),
-          signal: AbortSignal.timeout(25000)
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({ messages: [{ role: "user", content: prompt }], model, temperature: 0.4, response_format: { type: "json_object" } }),
+          signal: AbortSignal.timeout(30000)
         });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          const msg = errData?.error?.message || `HTTP ${res.status}`;
-          console.error(`⚠️ Groq API error for ${model}: ${msg}`);
-          lastError = `${model}: ${msg}`;
-          continue;
-        }
-
+        if (!res.ok) { const errData = await res.json().catch(() => ({})); lastError = `${model}: ${errData?.error?.message || `HTTP ${res.status}`}`; console.error(`⚠️ Groq error: ${lastError}`); continue; }
         const data = await res.json();
         const text = data?.choices?.[0]?.message?.content;
-
-        if (!text) {
-          lastError = `${model}: Empty response from API`;
-          continue;
-        }
-
-        // Extract JSON from response
+        if (!text) { lastError = `${model}: Empty response`; continue; }
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          lastError = `${model}: Invalid JSON format in response`;
-          continue;
-        }
-
-        const insights = JSON.parse(jsonMatch[0]);
+        if (!jsonMatch) { lastError = `${model}: Invalid JSON`; continue; }
         console.log(`✅ Success with Groq ${model}`);
-        return { success: true, insights };
-      } catch (err) {
-        console.error(`⚠️ Error with Groq ${model}:`, err.message);
-        lastError = `${model}: ${err.message}`;
-        continue;
-      }
+        return { success: true, insights: JSON.parse(jsonMatch[0]) };
+      } catch (err) { lastError = `${model}: ${err.message}`; continue; }
     }
   }
 
-  console.log(`❌ All keys and models failed. Supplying fallback insight structure.`);
   return {
-    success: false,
-    error: lastError || "All keys and models failed",
-    insights: {
-      home_probable_xi: ["TBA"],
-      away_probable_xi: ["TBA"],
-      home_form_batsmen: "Pending",
-      away_form_batsmen: "Pending",
-      home_form_bowlers: "Pending",
-      away_form_bowlers: "Pending",
-      pitch_report: "Historical data analysis pending. AI API quota limit reached. Check back later.",
-      head_to_head: "Data not pulled.",
-      key_matchups: "AI Service momentarily offline.",
-      prediction_summary: `Fallback invoked. Error trace: ${lastError || 'Unknown Error'}`
-    }
+    success: false, error: lastError,
+    insights: { home_probable_xi: ["TBA"], away_probable_xi: ["TBA"], home_form_batsmen: "Pending", away_form_batsmen: "Pending", home_form_bowlers: "Pending", away_form_bowlers: "Pending", pitch_report: "AI API quota limit reached.", head_to_head: "N/A", key_matchups: "AI Service offline.", prediction_summary: `Error: ${lastError}` }
   };
 }

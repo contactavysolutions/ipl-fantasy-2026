@@ -407,8 +407,91 @@ function Countdown({lockTime}) {
   );
 }
 
+// ─── MATCH RECAP PANEL ────────────────────────────────────────────────────────
+function RecapTeaser({recap, matchId}) {
+  const [expanded, setExpanded] = useState(false);
+  if (!recap || !recap.overall_summary) return null;
+
+  const roasts = Array.isArray(recap.player_roasts) ? recap.player_roasts : [];
+
+  return (
+    <div style={{marginTop:"10px",paddingTop:"10px",borderTop:"1px solid rgba(255,215,0,0.12)"}} onClick={e=>e.stopPropagation()}>
+      <style>{`
+        .recap-glow{animation:recapPulse 3s ease-in-out infinite alternate;}
+        @keyframes recapPulse{0%{box-shadow:0 0 8px rgba(255,215,0,0.1)}100%{box-shadow:0 0 20px rgba(255,215,0,0.2)}}
+        .recap-btn:hover{transform:scale(1.02)!important;filter:brightness(1.1);}
+      `}</style>
+      <button className="recap-btn recap-glow" onClick={()=>setExpanded(o=>!o)} style={{
+        width:"100%",padding:"10px 14px",borderRadius:"10px",cursor:"pointer",
+        background:"linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,140,0,0.05))",
+        border:"1px solid rgba(255,215,0,0.2)",display:"flex",alignItems:"center",justifyContent:"space-between",
+        fontFamily:"'Inter',sans-serif",transition:"all 0.2s"
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+          <span style={{fontSize:"16px"}}>🎬</span>
+          <span style={{fontSize:"13px",fontWeight:700,background:"linear-gradient(135deg,#FFD700,#FF8C00)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>The Match Recap</span>
+          {recap.mvp_name&&<span style={{fontSize:"10px",color:"#fbbf24",background:"rgba(255,215,0,0.1)",padding:"2px 6px",borderRadius:"4px"}}>🏆 {recap.mvp_name}</span>}
+        </div>
+        <span style={{color:"#fbbf24",fontSize:"12px",transition:"transform 0.3s",transform:expanded?"rotate(180deg)":"rotate(0)"}}>{expanded?"▲":"▼"}</span>
+      </button>
+
+      {expanded&&(
+        <div style={{marginTop:"12px",animation:"fadeIn 0.3s ease"}}>
+          <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+          {/* Overall Summary */}
+          <div style={{
+            padding:"14px",borderRadius:"12px",marginBottom:"12px",
+            background:"linear-gradient(135deg, rgba(255,215,0,0.06), rgba(139,69,19,0.06))",
+            border:"1px solid rgba(255,215,0,0.12)",fontSize:"13px",color:"#e2e8f0",lineHeight:"1.6",
+            fontStyle:"italic",whiteSpace:"pre-wrap"
+          }}>
+            {recap.overall_summary}
+          </div>
+
+          {/* MVP & Flop */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"12px"}}>
+            {recap.mvp_name&&(
+              <div style={{padding:"10px 12px",borderRadius:"10px",background:"rgba(34,197,94,0.06)",border:"1px solid rgba(34,197,94,0.15)"}}>
+                <div style={{fontSize:"10px",color:"#4ade80",fontWeight:700,letterSpacing:"1px",marginBottom:"4px"}}>🏆 MVP</div>
+                <div style={{fontSize:"13px",fontWeight:700,color:"#4ade80"}}>{recap.mvp_name}</div>
+                <div style={{fontSize:"11px",color:"#86efac",marginTop:"4px",lineHeight:"1.4"}}>{recap.mvp_line}</div>
+              </div>
+            )}
+            {recap.flop_name&&(
+              <div style={{padding:"10px 12px",borderRadius:"10px",background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.15)"}}>
+                <div style={{fontSize:"10px",color:"#f87171",fontWeight:700,letterSpacing:"1px",marginBottom:"4px"}}>💀 FLOP</div>
+                <div style={{fontSize:"13px",fontWeight:700,color:"#f87171"}}>{recap.flop_name}</div>
+                <div style={{fontSize:"11px",color:"#fca5a5",marginTop:"4px",lineHeight:"1.4"}}>{recap.flop_line}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Player Roasts */}
+          {roasts.length>0&&(
+            <div style={{borderRadius:"10px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.06)"}}>
+              <div style={{padding:"8px 12px",background:"rgba(255,255,255,0.03)",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                <span style={{fontSize:"11px",fontWeight:700,color:"#fbbf24",letterSpacing:"1px"}}>🎤 PLAYER ROASTS</span>
+              </div>
+              {roasts.map((r, i) => (
+                <div key={i} style={{
+                  padding:"8px 12px",borderBottom:i<roasts.length-1?"1px solid rgba(255,255,255,0.04)":"none",
+                  display:"flex",gap:"10px",alignItems:"flex-start",
+                  background:i%2===0?"rgba(255,255,255,0.01)":"transparent"
+                }}>
+                  <span style={{fontSize:"12px",fontWeight:700,color:"#fbbf24",minWidth:"70px",flexShrink:0}}>{r.name}</span>
+                  <span style={{fontSize:"11px",color:"#cbd5e1",lineHeight:"1.4",fontStyle:"italic"}}>"{r.line}"</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MATCHES LIST ─────────────────────────────────────────────────────────────
-function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
+function MatchesPage({user,onSelectMatch,matches,results,userSel,recaps={}}) {
   const now=useNowTick(30000); // refresh every 30s for status re-classification
   const [filter,setFilter]=useState("open");
   const filtered = matches.filter(m=>{
@@ -498,6 +581,10 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel}) {
               <div style={{textAlign:"center",marginTop:"10px",paddingTop:"10px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
                 <span style={{fontSize:"12px",color:"#00c864",fontWeight:"bold"}}>🏆 {res.winningTeam} won{res.runMargin?` by ${res.runMargin} runs`:res.wicketMargin?` by ${res.wicketMargin} wickets`:""}</span>
               </div>
+            )}
+            {/* Match Recap teaser */}
+            {recaps[match.id]&&(
+              <RecapTeaser recap={recaps[match.id]} matchId={match.id}/>
             )}
           </div>
         );
@@ -2926,6 +3013,7 @@ export default function App() {
   const [insights,setInsights]=useState({});
   const [playerScores,setPlayerScores]=useState({});
   const [challenges,setChallenges]=useState([]);
+  const [recaps,setRecaps]=useState({});
   const [loading,setLoading]=useState(true);
 
   const userSel=user?(allSelections[user.username]||{}):{};
@@ -2939,7 +3027,8 @@ export default function App() {
       supa.query("match_insights",{select:"*"}).catch(()=>[]),
       supa.query("player_scores",{select:"*"}).catch(()=>[]),
       supa.query("challenges",{select:"*"}).catch(()=>[]),
-    ]).then(async ([matchData,resultData,selData,insightsData,playerScoresData,challengesData])=>{
+      supa.query("match_recaps",{select:"*"}).catch(()=>[]),
+    ]).then(async ([matchData,resultData,selData,insightsData,playerScoresData,challengesData,recapsData])=>{
       setMatches(matchData||[]);
       // Auto-expire pending challenges whose match has now locked or started
       try {
@@ -2974,6 +3063,9 @@ export default function App() {
         scoreMap[s.match_id][s.player_name]=s;
       });
       setPlayerScores(scoreMap);
+      const recapMap={};
+      (Array.isArray(recapsData)?recapsData:[]).forEach(r=>{recapMap[r.match_id]=r;});
+      setRecaps(recapMap);
     }).catch(console.error);
   },[user]);
 
@@ -3059,6 +3151,14 @@ export default function App() {
   const onSaveResult=useCallback(async(matchId,res)=>{
     await supa.upsert("results",{match_id:matchId,winning_team:res.winningTeam,win_by_runs:res.winByRuns,run_margin:res.runMargin,wicket_margin:res.wicketMargin,top_scorer:(res.topScorers||[]).join(','),top_scorer_runs:res.topScorerRuns,best_bowler:(res.bestBowlers||[]).join(','),best_bowler_points:res.bestBowlerPoints,powerplay_winner:res.powerplayWinner,powerplay_score:res.powerplayScore,powerplay_diff:res.powerplayDiff,dot_ball_leader:(res.dotBallLeaders||[]).join(','),dot_balls:res.dotBalls,total_wickets:res.totalWickets,wickets_range:res.wicketsRange,duck_batsmen:res.duckBatsmen,match_top_player:(res.matchTopPlayers||[]).join(","),match_bottom_player:(res.matchBottomPlayers||[]).join(",")},"match_id");
     setResults(prev=>({...prev,[matchId]:res}));
+    // Auto-generate match recap in background
+    fetch("/api/generate-match-recap",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({matchId})}).then(r=>r.json()).then(data=>{
+      if(data.success){
+        supa.query("match_recaps",{select:"*",eq:{match_id:matchId}}).then(recapArr=>{
+          if(recapArr?.[0]) setRecaps(prev=>({...prev,[matchId]:recapArr[0]}));
+        });
+      }
+    }).catch(()=>{});
   },[]);
 
   const onSaveSelection=useCallback(async(username,matchId,sel)=>{
@@ -3196,7 +3296,7 @@ export default function App() {
         {/* Page Content */}
         {selectedMatch
           ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave} insights={insights[selectedMatch.id]} playerScores={playerScores}/>
-          :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel}/>
+          :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel} recaps={recaps}/>
           :page==="leaderboard"?<LeaderboardPage user={user} matches={matches} results={results} allSelections={allSelections} userSel={userSel} playerScores={playerScores}/>
           :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true} isAdmin={user.isAdmin}/></div>
           :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} user={user}/>

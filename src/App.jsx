@@ -1918,10 +1918,8 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
 
 // ─── LATEST ROAST BANNER ──────────────────────────────────────────────────────
 function LatestRoastBanner({matches, recaps}) {
-  const [expanded, setExpanded] = useState(false);
-  const [dismissed, setDismissed] = useState(()=>{
-    try{return sessionStorage.getItem("dismissed_recap")||null;}catch{return null;}
-  });
+  const [minimized, setMinimized] = useState(false);
+  const [rostsOpen, setRostsOpen] = useState(false);
 
   // Find the most recent match that has a recap
   const completedWithRecaps = matches
@@ -1931,19 +1929,10 @@ function LatestRoastBanner({matches, recaps}) {
   const latestMatch = completedWithRecaps[0];
 
   if (!latestRecap || !latestMatch) return null;
-  // Dismiss key = generated_at timestamp — regenerating recap auto-clears the dismiss
-  const dismissKey = latestRecap.generated_at || String(latestMatch.id);
-  if (dismissed === dismissKey) return null;
 
   const roasts = Array.isArray(latestRecap.player_roasts) ? latestRecap.player_roasts : [];
   const hoursAgo = latestRecap.generated_at ? Math.round((Date.now() - new Date(latestRecap.generated_at))/3600000) : null;
   const isNew = hoursAgo !== null && hoursAgo < 24;
-
-  const handleDismiss = (e) => {
-    e.stopPropagation();
-    setDismissed(dismissKey);
-    sessionStorage.setItem("dismissed_recap", dismissKey);
-  };
 
   return (
     <div style={{marginBottom:"20px"}}>
@@ -1957,6 +1946,7 @@ function LatestRoastBanner({matches, recaps}) {
           0%,100%{opacity:1;transform:scale(1)}
           50%{opacity:0.7;transform:scale(1.1)}
         }
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
         .roast-banner{position:relative;border-radius:16px;overflow:hidden;}
         .roast-banner::before{
           content:"";position:absolute;inset:-2px;border-radius:17px;z-index:0;
@@ -1968,73 +1958,77 @@ function LatestRoastBanner({matches, recaps}) {
           background:linear-gradient(135deg,rgba(8,11,18,0.97),rgba(20,10,5,0.95));
         }
         .roast-inner{position:relative;z-index:1;padding:16px 18px;}
-        .roast-expand{transition:all 0.3s ease;}
+        .roast-header{cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;}
+        .roast-header:hover .roast-chevron{color:#ffd700!important;}
       `}</style>
       <div className="roast-banner">
         <div className="roast-inner">
-          {/* Header */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
+          {/* Clickable header — click anywhere to minimize/expand */}
+          <div className="roast-header" onClick={()=>setMinimized(o=>!o)} style={{marginBottom: minimized ? 0 : "10px"}}>
             <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
               <span style={{fontSize:"18px"}}>🔥</span>
               <span style={{fontSize:"15px",fontWeight:800,background:"linear-gradient(135deg,#FF4500,#FFD700)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:"0.5px"}}>MATCH M{latestMatch.id} ROAST</span>
               <span style={{fontSize:"11px",color:"#94a3b8",fontWeight:500}}>{latestMatch.home} vs {latestMatch.away}</span>
               {isNew&&<span style={{fontSize:"9px",fontWeight:800,color:"#fff",background:"linear-gradient(135deg,#ef4444,#f97316)",padding:"2px 8px",borderRadius:"10px",letterSpacing:"1px",animation:"newBadgePulse 2s ease infinite"}}>NEW</span>}
             </div>
-            <button onClick={handleDismiss} style={{background:"none",border:"none",cursor:"pointer",color:"#475569",fontSize:"16px",padding:"4px",lineHeight:"1"}} title="Dismiss">✕</button>
+            <span className="roast-chevron" style={{color:"#fbbf24",fontSize:"13px",transition:"transform 0.3s",transform:minimized?"rotate(0)":"rotate(180deg)"}}>▲</span>
           </div>
 
-          {/* Overall Summary */}
-          <div style={{fontSize:"13px",color:"#e2e8f0",lineHeight:"1.6",marginBottom:"12px",fontStyle:"italic",whiteSpace:"pre-wrap"}}>
-            {latestRecap.overall_summary}
-          </div>
-
-          {/* MVP & Flop side by side */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
-            {latestRecap.mvp_name&&(
-              <div style={{padding:"10px 12px",borderRadius:"10px",background:"rgba(34,197,94,0.08)",border:"1px solid rgba(34,197,94,0.2)"}}>
-                <div style={{fontSize:"10px",color:"#4ade80",fontWeight:800,letterSpacing:"1px",marginBottom:"3px"}}>🏆 MVP</div>
-                <div style={{fontSize:"14px",fontWeight:800,color:"#4ade80"}}>{latestRecap.mvp_name}</div>
-                <div style={{fontSize:"11px",color:"#86efac",marginTop:"4px",lineHeight:"1.4",fontStyle:"italic"}}>"{latestRecap.mvp_line}"</div>
+          {/* Collapsible body */}
+          {!minimized&&(
+            <div style={{animation:"fadeIn 0.25s ease"}}>
+              {/* Overall Summary */}
+              <div style={{fontSize:"13px",color:"#e2e8f0",lineHeight:"1.6",marginBottom:"12px",fontStyle:"italic",whiteSpace:"pre-wrap"}}>
+                {latestRecap.overall_summary}
               </div>
-            )}
-            {latestRecap.flop_name&&(
-              <div style={{padding:"10px 12px",borderRadius:"10px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)"}}>
-                <div style={{fontSize:"10px",color:"#f87171",fontWeight:800,letterSpacing:"1px",marginBottom:"3px"}}>💀 FLOP</div>
-                <div style={{fontSize:"14px",fontWeight:800,color:"#f87171"}}>{latestRecap.flop_name}</div>
-                <div style={{fontSize:"11px",color:"#fca5a5",marginTop:"4px",lineHeight:"1.4",fontStyle:"italic"}}>"{latestRecap.flop_line}"</div>
-              </div>
-            )}
-          </div>
 
-          {/* Expand/Collapse player roasts */}
-          {roasts.length>0&&(
-            <div>
-              <button onClick={()=>setExpanded(o=>!o)} style={{
-                width:"100%",padding:"8px",borderRadius:"8px",cursor:"pointer",
-                background:"rgba(255,140,0,0.06)",border:"1px solid rgba(255,140,0,0.15)",
-                display:"flex",alignItems:"center",justifyContent:"center",gap:"6px",
-                fontFamily:"'Inter',sans-serif",transition:"all 0.2s"
-              }}>
-                <span style={{fontSize:"12px",fontWeight:700,color:"#fbbf24"}}>{expanded?"Hide":"See all"} {roasts.length} player roasts</span>
-                <span style={{color:"#fbbf24",fontSize:"11px",transition:"transform 0.3s",transform:expanded?"rotate(180deg)":"rotate(0)"}}>▼</span>
-              </button>
-
-              {expanded&&(
-                <div className="roast-expand" style={{marginTop:"10px",borderRadius:"10px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.06)",animation:"fadeIn 0.3s ease"}}>
-                  <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-                  <div style={{padding:"6px 12px",background:"rgba(255,255,255,0.03)",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-                    <span style={{fontSize:"10px",fontWeight:700,color:"#fbbf24",letterSpacing:"1px"}}>🎤 THE ROAST THREAD</span>
+              {/* MVP & Flop */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"10px"}}>
+                {latestRecap.mvp_name&&(
+                  <div style={{padding:"10px 12px",borderRadius:"10px",background:"rgba(34,197,94,0.08)",border:"1px solid rgba(34,197,94,0.2)"}}>
+                    <div style={{fontSize:"10px",color:"#4ade80",fontWeight:800,letterSpacing:"1px",marginBottom:"3px"}}>🏆 MVP</div>
+                    <div style={{fontSize:"14px",fontWeight:800,color:"#4ade80"}}>{latestRecap.mvp_name}</div>
+                    <div style={{fontSize:"11px",color:"#86efac",marginTop:"4px",lineHeight:"1.4",fontStyle:"italic"}}>"{latestRecap.mvp_line}"</div>
                   </div>
-                  {roasts.map((r, i) => (
-                    <div key={i} style={{
-                      padding:"7px 12px",borderBottom:i<roasts.length-1?"1px solid rgba(255,255,255,0.04)":"none",
-                      display:"flex",gap:"10px",alignItems:"flex-start",
-                      background:i%2===0?"rgba(255,255,255,0.01)":"transparent"
-                    }}>
-                      <span style={{fontSize:"12px",fontWeight:700,color:"#fbbf24",minWidth:"80px",flexShrink:0}}>{r.name}</span>
-                      <span style={{fontSize:"11px",color:"#cbd5e1",lineHeight:"1.4",fontStyle:"italic"}}>"{r.line}"</span>
+                )}
+                {latestRecap.flop_name&&(
+                  <div style={{padding:"10px 12px",borderRadius:"10px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)"}}>
+                    <div style={{fontSize:"10px",color:"#f87171",fontWeight:800,letterSpacing:"1px",marginBottom:"3px"}}>💀 FLOP</div>
+                    <div style={{fontSize:"14px",fontWeight:800,color:"#f87171"}}>{latestRecap.flop_name}</div>
+                    <div style={{fontSize:"11px",color:"#fca5a5",marginTop:"4px",lineHeight:"1.4",fontStyle:"italic"}}>"{latestRecap.flop_line}"</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Player roasts toggle */}
+              {roasts.length>0&&(
+                <div>
+                  <button onClick={e=>{e.stopPropagation();setRostsOpen(o=>!o);}} style={{
+                    width:"100%",padding:"8px",borderRadius:"8px",cursor:"pointer",
+                    background:"rgba(255,140,0,0.06)",border:"1px solid rgba(255,140,0,0.15)",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:"6px",
+                    fontFamily:"'Inter',sans-serif",transition:"all 0.2s"
+                  }}>
+                    <span style={{fontSize:"12px",fontWeight:700,color:"#fbbf24"}}>{rostsOpen?"Hide":"See all"} {roasts.length} player roasts</span>
+                    <span style={{color:"#fbbf24",fontSize:"11px",transition:"transform 0.3s",transform:rostsOpen?"rotate(180deg)":"rotate(0)"}}>▼</span>
+                  </button>
+                  {rostsOpen&&(
+                    <div style={{marginTop:"10px",borderRadius:"10px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.06)",animation:"fadeIn 0.3s ease"}}>
+                      <div style={{padding:"6px 12px",background:"rgba(255,255,255,0.03)",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                        <span style={{fontSize:"10px",fontWeight:700,color:"#fbbf24",letterSpacing:"1px"}}>🎤 THE ROAST THREAD</span>
+                      </div>
+                      {roasts.map((r, i) => (
+                        <div key={i} style={{
+                          padding:"7px 12px",borderBottom:i<roasts.length-1?"1px solid rgba(255,255,255,0.04)":"none",
+                          display:"flex",gap:"10px",alignItems:"flex-start",
+                          background:i%2===0?"rgba(255,255,255,0.01)":"transparent"
+                        }}>
+                          <span style={{fontSize:"12px",fontWeight:700,color:"#fbbf24",minWidth:"80px",flexShrink:0}}>{r.name}</span>
+                          <span style={{fontSize:"11px",color:"#cbd5e1",lineHeight:"1.4",fontStyle:"italic"}}>"{r.line}"</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>

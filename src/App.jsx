@@ -2044,12 +2044,10 @@ function LatestRoastBanner({matches, recaps}) {
 }
 
 // ─── UNIFIED LEADERBOARD PAGE ─────────────────────────────────────────────────
-function LeaderboardPage({user, matches, results, allSelections, userSel, playerScores, recaps={}}) {
+function LeaderboardPage({user, matches, results, allSelections, userSel, playerScores}) {
   const [tab, setTab] = useState("board");
   return (
     <div style={S.page}>
-      {/* Latest Roast Banner — pinned at top */}
-      <LatestRoastBanner matches={matches} recaps={recaps}/>
       <h1 style={S.h1}>Leaderboard & Stats</h1>
       <p style={{color:"#64748b",fontSize:"13px",marginBottom:"20px"}}>Season standings and historical data</p>
 
@@ -2916,7 +2914,7 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
 }
 
 // ─── LIVE SCORE PAGE ──────────────────────────────────────────────────────────
-function LiveScorePage({matches, results, allSelections, playerScores, onSavePlayerScores, user}) {
+function LiveScorePage({matches, results, allSelections, playerScores, onSavePlayerScores, user, recaps={}}) {
   const [tab, setTab] = useState("grid");
   return (
     <div style={S.page}>
@@ -2929,7 +2927,7 @@ function LiveScorePage({matches, results, allSelections, playerScores, onSavePla
         <button style={S.navBtn(tab==="update")} onClick={()=>setTab("update")}>✏️ Update Player Stats</button>
       </div>
 
-      {tab==="grid" && <LiveGrid matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} user={user} />}
+      {tab==="grid" && <LiveGrid matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} user={user} recaps={recaps}/>}
       {tab==="dist" && <LiveDistributions matches={matches} allSelections={allSelections} />}
       {tab==="update" && <PlayerScoresTab matches={matches} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} />}
     </div>
@@ -3026,7 +3024,7 @@ function LiveDistributions({matches, allSelections}) {
   );
 }
 
-function LiveGrid({matches, results, allSelections, playerScores, user}) {
+function LiveGrid({matches, results, allSelections, playerScores, user, recaps={}}) {
   const isAdmin = user?.isAdmin;
   const [expandedRow, setExpandedRow] = useState(null);
   const [now] = useState(new Date());
@@ -3039,6 +3037,8 @@ function LiveGrid({matches, results, allSelections, playerScores, user}) {
   
   return (
     <div>
+      {/* Latest Roast Banner — above match selector */}
+      <LatestRoastBanner matches={matches} recaps={recaps}/>
       <div style={{marginBottom:"16px"}}>
         <label style={S.label}>Select Match to Track</label>
         <select style={{...S.select,maxWidth:"400px"}} value={selectedMatchId} onChange={e=>setSelectedMatchId(e.target.value)}>
@@ -3427,9 +3427,9 @@ export default function App() {
         {selectedMatch
           ?<SelectionForm match={selectedMatch} user={user} onBack={()=>setSelectedMatch(null)} results={results} userSel={userSel} onSave={onSave} insights={insights[selectedMatch.id]} playerScores={playerScores}/>
           :page==="matches"?<MatchesPage user={user} onSelectMatch={m=>{setSelectedMatch(m);}} matches={matches} results={results} userSel={userSel} recaps={recaps}/>
-          :page==="leaderboard"?<LeaderboardPage user={user} matches={matches} results={results} allSelections={allSelections} userSel={userSel} playerScores={playerScores} recaps={recaps}/>
+          :page==="leaderboard"?<LeaderboardPage user={user} matches={matches} results={results} allSelections={allSelections} userSel={userSel} playerScores={playerScores}/>
           :page==="selections"?<div style={S.page}><PlayerSelectionsTab matches={matches} allSelections={allSelections} readOnly={true} isAdmin={user.isAdmin}/></div>
-          :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} user={user}/>
+          :page==="live"?<LiveScorePage matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores} user={user} recaps={recaps}/>
           :page==="rivals"?<RivalryArenaPage user={user} matches={matches} results={results} allSelections={allSelections} playerScores={playerScores} challenges={challenges} onCreateChallenge={onCreateChallenge} onRespondChallenge={onRespondChallenge} onResolveChallenge={onResolveChallenge}/>
           :page==="admin"&&user.isAdmin?<AdminPage matches={matches} results={results} onSaveResult={onSaveResult} allSelections={allSelections} onSaveSelection={onSaveSelection} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>
           :null

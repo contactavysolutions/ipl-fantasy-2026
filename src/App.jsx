@@ -501,6 +501,8 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel,recaps={}}) {
     if(filter==="completed") return st==="completed";
     return true;
   });
+  // Open: ascending (soonest match first). Locked/Completed/All: descending (latest match first)
+  if(filter!=="open") filtered.sort((a,b)=>b.id-a.id);
 
   const stBorder=(st)=>st==="completed"?"rgba(0,200,100,0.25)":st==="locked"?"rgba(255,100,100,0.2)":st==="submitted"?"rgba(0,150,255,0.2)":"rgba(255,165,0,0.15)";
   const stBg=(st)=>st==="completed"?"rgba(0,200,100,0.03)":st==="locked"?"rgba(255,80,80,0.03)":st==="submitted"?"rgba(0,150,255,0.03)":"rgba(255,255,255,0.03)";

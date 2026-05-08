@@ -1920,7 +1920,7 @@ function RivalryArenaPage({user, matches, results, allSelections, playerScores, 
 function LatestRoastBanner({matches, recaps}) {
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState(()=>{
-    try{return JSON.parse(sessionStorage.getItem("dismissed_recap")||"null");}catch{return null;}
+    try{return sessionStorage.getItem("dismissed_recap")||null;}catch{return null;}
   });
 
   // Find the most recent match that has a recap
@@ -1931,7 +1931,9 @@ function LatestRoastBanner({matches, recaps}) {
   const latestMatch = completedWithRecaps[0];
 
   if (!latestRecap || !latestMatch) return null;
-  if (dismissed === latestMatch.id) return null;
+  // Dismiss key = generated_at timestamp — regenerating recap auto-clears the dismiss
+  const dismissKey = latestRecap.generated_at || String(latestMatch.id);
+  if (dismissed === dismissKey) return null;
 
   const roasts = Array.isArray(latestRecap.player_roasts) ? latestRecap.player_roasts : [];
   const hoursAgo = latestRecap.generated_at ? Math.round((Date.now() - new Date(latestRecap.generated_at))/3600000) : null;
@@ -1939,8 +1941,8 @@ function LatestRoastBanner({matches, recaps}) {
 
   const handleDismiss = (e) => {
     e.stopPropagation();
-    setDismissed(latestMatch.id);
-    sessionStorage.setItem("dismissed_recap", JSON.stringify(latestMatch.id));
+    setDismissed(dismissKey);
+    sessionStorage.setItem("dismissed_recap", dismissKey);
   };
 
   return (

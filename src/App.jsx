@@ -350,6 +350,8 @@ function isMatchLocked(match, now) {
 }
 
 function getStatus(match, now, results, userSel) {
+  // Pre-app matches (M1-M16) had no result rows — treat as completed
+  if (match.id <= 16) return "completed";
   if (results[match.id]) return "completed";
   if (isMatchLocked(match, now)) return "locked";
   if (userSel[match.id]) return "submitted";
@@ -584,10 +586,7 @@ function MatchesPage({user,onSelectMatch,matches,results,userSel,recaps={}}) {
                 <span style={{fontSize:"12px",color:"#00c864",fontWeight:"bold"}}>🏆 {res.winningTeam} won{res.runMargin?` by ${res.runMargin} runs`:res.wicketMargin?` by ${res.wicketMargin} wickets`:""}</span>
               </div>
             )}
-            {/* Match Recap teaser */}
-            {recaps[match.id]&&(
-              <RecapTeaser recap={recaps[match.id]} matchId={match.id}/>
-            )}
+            {/* Match Recap is shown on the Leaderboard banner, not here */}
           </div>
         );
       })}

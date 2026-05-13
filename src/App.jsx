@@ -26,6 +26,7 @@ const supa = {
   async upsert(table, data, onConflict) {
     const { data: res, error } = await supabase.from(table).upsert(data, { onConflict }).select();
     if (error) throw error;
+    if (!res || res.length === 0) throw new Error('Save failed: Supabase returned no rows. Check RLS policies or unique constraints on table: ' + table);
     return res || [];
   },
   async update(table, data, eq) {
@@ -697,9 +698,16 @@ function SelectionForm({match,user,onBack,results,userSel,onSave,insights,player
       return;
     }
     setSaving(true);
-    await onSave(match.id,sel);
-    setSaved(true); setMsg("Selections saved! ✓");
-    setSaving(false); setTimeout(()=>setMsg(""),3000);
+    try {
+      await onSave(match.id,sel);
+      setSaved(true); setMsg("Selections saved! ✓");
+      setTimeout(()=>setMsg(""),3000);
+    } catch(err) {
+      setMsg("❌ Save failed: " + (err?.message || "Unknown error. Check your connection or contact admin."));
+      setTimeout(()=>setMsg(""),8000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const points=hasResult?calcPoints(sel,results[match.id],playerScores[match.id]):null;

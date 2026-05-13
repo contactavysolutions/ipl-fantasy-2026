@@ -78,14 +78,15 @@ const DOUBLE_CATEGORIES = ["Winning Team","Best Batsman","Best Bowler","Powerpla
 function getDefaultLiveMatchId(matches, now) {
   const todayStr = now.toISOString().slice(0, 10);
   // Matches locked today
-  const lockedToday = matches.filter(m => isMatchLocked(m, now) && m.date === todayStr);
+  const isTimeLocked = m => m.is_locked===true||(m.lock_time&&now>=new Date(m.lock_time));
+  const lockedToday = matches.filter(m => isTimeLocked(m) && m.date === todayStr);
   if (lockedToday.length > 0) {
     // Prefer match that locked most recently (ongoing) — sorted by lock_time desc
     const sorted = [...lockedToday].sort((a, b) => new Date(b.lock_time) - new Date(a.lock_time));
     return String(sorted[0].id);
   }
   // Fallback: most recently locked match overall
-  const allLocked = matches.filter(m => isMatchLocked(m, now));
+  const allLocked = matches.filter(m => isTimeLocked(m));
   return allLocked.length > 0 ? String(allLocked[allLocked.length - 1].id) : "";
 }
 
@@ -2170,7 +2171,9 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
   const [savedMsg,setSavedMsg]=useState("");
 
   const lockedMatches=matches.filter(m=>{
-    if(isMatchLocked(m, now)) return true;
+    if(m.is_locked === true) return true;
+    // Show if lock_time has passed, even if admin set is_locked=false (override only affects submissions)
+    if(m.lock_time && now >= new Date(m.lock_time)) return true;
     // Also show matches within the next 48 hours for admin preview
     const hoursUntilLock = (new Date(m.lock_time) - now) / (1000*60*60);
     return hoursUntilLock > 0 && hoursUntilLock <= 48;
@@ -2407,7 +2410,7 @@ function PlayerScoresTab({matches, allSelections, playerScores, onSavePlayerScor
   const [savedMsg, setSavedMsg] = useState("");
 
   const now = new Date();
-  const lockedMatches = matches.filter(m => isMatchLocked(m, now));
+  const lockedMatches = matches.filter(m => m.is_locked===true||(m.lock_time&&now>=new Date(m.lock_time)));
   const m = lockedMatches.find(x => String(x.id) === String(selectedMatchId));
 
   let targetPlayers = [];
@@ -2627,7 +2630,7 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
   const [autofillLoading,setAutofillLoading]=useState(false);
   const [autofillError,setAutofillError]=useState(null);
 
-  const lockedMatches=matches.filter(m=>isMatchLocked(m, now));
+  const lockedMatches=matches.filter(m=>m.is_locked===true||(m.lock_time&&now>=new Date(m.lock_time)));
   const selectMatch=(m)=>{
     setSelectedMatch(m);
     const ex=results[m.id];

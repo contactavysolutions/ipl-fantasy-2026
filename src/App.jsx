@@ -3196,7 +3196,7 @@ export default function App() {
       supa.query("results",{select:"*"}),
       supa.query("selections",{select:"*",paginate:true}),
       supa.query("match_insights",{select:"*"}).catch(()=>[]),
-      supa.query("player_scores",{select:"*"}).catch(()=>[]),
+      supa.query("player_scores",{select:"*",paginate:true}).catch(()=>[]),
       supa.query("challenges",{select:"*"}).catch(()=>[]),
       supa.query("match_recaps",{select:"*"}).catch(()=>[]),
     ]).then(async ([matchData,resultData,selData,insightsData,playerScoresData,challengesData,recapsData])=>{

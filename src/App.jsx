@@ -11,6 +11,30 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ─── SUPABASE CLIENT (Legacy Wrapper) ─────────────────────────────────────────
 const supa = {
   async query(table, opts = {}) {
+    if (opts.paginate) {
+      // Paginated fetch — bypasses Supabase server-side 1000-row cap
+      const pageSize = 1000;
+      let allRows = [];
+      let from = 0;
+      while (true) {
+        let q = supabase.from(table).select(opts.select || '*');
+        if (opts.eq) {
+          Object.entries(opts.eq).forEach(([k,v]) => { q = q.eq(k, v); });
+        }
+        if (opts.order) {
+          const [col, dir] = opts.order.split('.');
+          q = q.order(col, { ascending: dir === 'asc' });
+        }
+        q = q.range(from, from + pageSize - 1);
+        const { data, error } = await q;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allRows = allRows.concat(data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return allRows;
+    }
     let q = supabase.from(table).select(opts.select || '*');
     if (opts.eq) {
       Object.entries(opts.eq).forEach(([k,v]) => { q = q.eq(k, v); });
@@ -3170,7 +3194,7 @@ export default function App() {
     return Promise.all([
       supa.query("matches",{select:"*",order:"id.asc"}),
       supa.query("results",{select:"*"}),
-      supa.query("selections",{select:"*",limit:5000}),
+      supa.query("selections",{select:"*",paginate:true}),
       supa.query("match_insights",{select:"*"}).catch(()=>[]),
       supa.query("player_scores",{select:"*"}).catch(()=>[]),
       supa.query("challenges",{select:"*"}).catch(()=>[]),

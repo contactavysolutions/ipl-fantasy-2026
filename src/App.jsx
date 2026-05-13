@@ -354,8 +354,9 @@ function getStatus(match, now, results, userSel) {
   // Pre-app matches (M1-M16) had no result rows — treat as completed
   if (match.id <= 16) return "completed";
   if (results[match.id]) return "completed";
-  if (isMatchLocked(match, now)) return "locked";
+  // Check submitted BEFORE locked — so a player who picked sees "submitted" even after lock
   if (userSel[match.id]) return "submitted";
+  if (isMatchLocked(match, now)) return "locked";
   return "open";
 }
 
@@ -2189,7 +2190,8 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
 
   const startEdit=(playerName)=>{
     const uname=playerName.toLowerCase().replace(/\s/g,"_");
-    const existing=allSelections[uname]?.[selectedMatchId]||{};
+    const matchedKey=Object.keys(allSelections).find(k=>k.toLowerCase().replace(/\s/g,"_")===uname)||uname;
+    const existing=allSelections[matchedKey]?.[selectedMatchId]||{};
     setEditForm({...EMPTY_SEL,...existing});
     setEditingPlayer(playerName);
   };
@@ -2207,7 +2209,12 @@ function PlayerSelectionsTab({matches,allSelections,onSaveSelection,readOnly=fal
     setTimeout(()=>setSavedMsg(""),3000);
   };
 
-  const submitted=m?FANTASY_PLAYERS.filter(name=>allSelections[name.toLowerCase().replace(/\s/g,"_")]?.[selectedMatchId]):[];
+  const submitted=m?FANTASY_PLAYERS.filter(name=>{
+    const uname=name.toLowerCase().replace(/\s/g,"_");
+    // Match against any key that normalises to the same value (handles meta.username variants)
+    const matchedKey=Object.keys(allSelections).find(k=>k.toLowerCase().replace(/\s/g,"_")===uname);
+    return matchedKey&&allSelections[matchedKey]?.[selectedMatchId];
+  }):[];
 
   return (
     <div>

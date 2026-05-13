@@ -19,6 +19,9 @@ const supa = {
       const [col, dir] = opts.order.split('.');
       q = q.order(col, { ascending: dir === 'asc' });
     }
+    if (opts.limit) {
+      q = q.limit(opts.limit);
+    }
     const { data, error } = await q;
     if (error) throw error;
     return data || [];
@@ -3167,7 +3170,7 @@ export default function App() {
     return Promise.all([
       supa.query("matches",{select:"*",order:"id.asc"}),
       supa.query("results",{select:"*"}),
-      supa.query("selections",{select:"*"}),
+      supa.query("selections",{select:"*",limit:5000}),
       supa.query("match_insights",{select:"*"}).catch(()=>[]),
       supa.query("player_scores",{select:"*"}).catch(()=>[]),
       supa.query("challenges",{select:"*"}).catch(()=>[]),

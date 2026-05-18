@@ -147,14 +147,90 @@ export default async function handler(req, res) {
       return `${rank}. ${p.displayName} — ${p.total} pts | Doubled: ${p.doubled} | Hits: ${p.hits.join(", ") || "none"} | Misses: ${p.misses.join(", ") || "none"}`;
     }).join("\n");
 
-    const prompt = `You are the MOST SAVAGE fantasy cricket league roast commentator alive. Think of yourself as a mix of:
-- A Reddit roast thread moderator with zero chill
-- Famous internet memes and pop culture references (e.g., "This is fine" dog, "Task failed successfully", "Tell me you don't watch cricket without telling me", "First time?" meme, "We were on the verge of greatness, we were this close", "Expectation vs Reality", etc.)
-- A stand-up comedian doing a brutal friends roast — the kind where everyone is laughing AND crying
-- Cricket commentary if it was written by someone who genuinely hates bad predictions
+    // ── Rotating roast personas — one picked randomly per generation ─────────────
+    const PERSONAS = [
+      { name: "Nature Documentary Narrator", style: "Narrate every bad pick like David Attenborough discovering a new species of idiot. 'And here... we observe the fantasy player... making the same mistake for the third consecutive match. Remarkable.'" },
+      { name: "Disappointed Corporate Manager", style: "Passive-aggressive performance review energy. 'Per my last email, this pick was suboptimal.' 'Going forward, I'd encourage more due diligence.' 'This is a growth opportunity we clearly did not take.'" },
+      { name: "Gordon Ramsay", style: "Absolute kitchen nightmare energy. 'This pick is so raw it's still mooing.' 'You call that a double category? My nan picks better and she thinks IPL is a vitamin supplement.' DONKEY." },
+      { name: "Disappointed Indian Parent", style: "Every bad pick is compared to someone who did better. 'Sharma ji's son got 200 more points and he doesn't even watch cricket.' Loving but devastatingly high-expectation energy." },
+      { name: "LinkedIn Thought Leader", style: "Humblebrag meets disaster. 'Really humbled by this learning experience. Picked the wrong team — but failure is just success in disguise. Grateful. #Fantasy #Cricket #GrowthMindset #Blessed #Wrong'" },
+      { name: "Medieval Town Crier", style: "Announce picks like a medieval herald. 'HEAR YE! The noble [Name] hath chosen foolishly and suffered GRIEVOUS losses! The kingdom is disappointed! The tavern laughs!'" },
+      { name: "Breaking News Anchor", style: "BREAKING: Local fantasy player makes inexplicable pick for 4th straight match. Sources close to the situation describe it as 'baffling'. Panel of experts unable to explain the logic. More at 11." },
+      { name: "Overly Positive Life Coach", style: "Ironically positive spin on disasters. 'You didn't get points — you got perspective! The universe is redirecting you! The wrong pick was the pick you needed to grow!' (It wasn't.)" },
+      { name: "r/mildlyinfuriating Moderator", style: "Deadpan understated rage. 'Ah yes, picking [wrong team] to win. Totally normal. Perfectly reasonable. I'm not upset. This is fine. Everything is fine. I'm fine.' [visible frustration]" },
+      { name: "Overly Dramatic Sports Commentator", style: "Treat every bad pick like a national crisis. 'In forty years of commentary, I have NEVER witnessed a double category decision so catastrophically, historically, cosmically wrong. History will judge this.'" },
+    ];
 
-YOUR LANGUAGE: English only. NO Telugu, Hindi, or any regional language. Pure English sarcasm.
-YOUR TONE: Maximum sarcasm. Each line should make the group chat explode. Think "why are you booing me, I'm right" energy.
+    // ── Massive roast template pool — 10 random ones injected per generation ─────
+    const ALL_TEMPLATES = [
+      "Picked [wrong team] to win. My man brought a plastic chair to a war zone.",
+      "Backed [wrong team]. The audacity. The delusion. The entertainment value. Carry on.",
+      "The [wrong team] pick aged like milk in a Chennai afternoon.",
+      "Trusted [player] as top scorer. [Player] then scored less than the drinks break.",
+      "Picked [player] as best bat. [Player] said no, actually, and made 4.",
+      "The [player] pick looked great on paper. The paper was factually incorrect.",
+      "Doubled [wrong category]. Twice the investment. Twice the disappointment. Efficient.",
+      "The double on [wrong category] was brave in the way that touching a hot stove is brave.",
+      "Doubled [wrong category] — not confidence, that's a cry for help with extra steps.",
+      "Got [X] points. My houseplant has stronger cricket instincts and it's been dead for a month.",
+      "[X] points. That's not a score, that's a rounding error.",
+      "Managed [X] points — proof that picking at random is also a strategy, just a bad one.",
+      "Trusted [player] with the ball. [Player] had other plans, specifically: conceding runs.",
+      "[Player] as best bowler. Bold. Wrong. Expensive.",
+      "Predicted the duck on [player]. Dark arts. Chaos mastery. Deeply unsettling. Respect.",
+      "Called [player] for a duck. They got a duck. This person sees the future and uses it poorly.",
+      "Wicket range was off by a country mile. And then another country.",
+      "Picked [wrong range] wickets. The actual number laughed and went elsewhere.",
+      "The picks read like they were generated by an AI that hates you specifically.",
+      "Every pick was made with the confidence of someone who definitely watches cricket. They don't.",
+      "This is fine. (Everything is not fine.)",
+      "Task: Pick good fantasy team. Status: Failed successfully.",
+      "Tell me you don't watch cricket without telling me you don't watch cricket.",
+      "POV: You've played fantasy cricket for 3 months and learned absolutely nothing.",
+      "Nobody: ... Absolutely nobody: ... [Name]: doubles [terrible category].",
+      "The [player] pick was very much a 'we have top scorer at home' situation.",
+      "Plot twist: [Name] was playing for the other team's fantasy league.",
+      "When you study for the wrong exam, take it anyway, and fail. This is that.",
+      "Started strong. Picked the right sport. Went downhill from there.",
+      "One correct pick. One. Out of many. Frame it. Put it on the wall.",
+      "Somehow wrong about everything simultaneously. That's statistically impressive.",
+      "At this point I'm convinced this is performance art.",
+      "The picks were bold. The results were not. A familiar story.",
+      "Confidently incorrect. A rare skill. Not everyone can do it this consistently.",
+      "The group chat has seen this pick sheet. The group chat has opinions.",
+      "I'm not saying it was a bad pick, but the ball has more self-awareness.",
+      "Picks locked in with zero doubt. Zero doubt. Zero points. Symmetry.",
+      "Current strategy: pick wrong, reflect, pick wrong again. A cycle. A brand.",
+      "These picks walked so future bad picks could run.",
+      "Somewhere, the correct picks are out there. Not here, but somewhere.",
+      "The wrong team, the wrong batsman, the wrong bowler. A clean sweep of incorrectness.",
+      "An ambitious pick sheet, in the sense that it ambitiously avoided being right.",
+      "This pick aged like milk, expired milk, milk that didn't even try.",
+      "The algorithm, the gut, the vibes — all said wrong team. And yet.",
+      "I've seen better picks from someone who chose based on jersey color.",
+      "Backed the wrong horse, wrong bat, wrong bowl. A masterpiece of incorrectness.",
+      "Instructions unclear. Picked [wrong player] anyway.",
+      "The double was the only way to make a bad pick twice as bad. Mission accomplished.",
+      "Sir, this is a cricket fantasy league, not an experiment in chaos theory.",
+      "I'm not angry. I'm just deeply, profoundly confused by these picks.",
+      "The duck prediction was the only thing that worked. The duck sees all.",
+      "Picked [player] knowing full well [player] had been averaging 4 runs. Loyalty or delusion?",
+      "Sometimes you back the wrong team. This person does it consistently. Respect the commitment.",
+      "A pick sheet so wrong it's almost impressive. Almost.",
+    ];
+
+    // Pick a random persona and 10 random templates for this generation
+    const persona = PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+    const shuffledTemplates = [...ALL_TEMPLATES].sort(() => Math.random() - 0.5).slice(0, 10);
+
+    const prompt = `You are the MOST SAVAGE fantasy cricket league roast commentator. Today's assigned persona:
+
+🎭 PERSONA: ${persona.name}
+STYLE: ${persona.style}
+
+Also blend in: internet meme energy, pop culture references, cricket banter.
+LANGUAGE: ENGLISH ONLY. No Telugu, Hindi, or any other language. Ever.
+DIVERSITY RULE: Every single roast line MUST use a completely different format, structure, and comedic device. If one roast is a nature doc, the next is a LinkedIn post, the next is breaking news — zero repetition of style within the same recap.
 
 MATCH: M${matchId} - ${match.home} vs ${match.away} (${match.date})
 RESULT: ${resObj.winningTeam} won${resObj.runMargin ? ` by ${resObj.runMargin} runs` : resObj.wicketMargin ? ` by ${resObj.wicketMargin} wickets` : ""}
@@ -168,35 +244,26 @@ ${playerSummaries}
 MVP: ${mvp.displayName} (${mvp.total} pts)
 FLOP: ${flop.displayName} (${flop.total} pts)
 
-GENERATE a JSON response with:
-1. "overall_summary": A 3-4 line SAVAGE match summary. Set the scene dramatically, then roast the overall group performance. Use meme references. Example tone: "Another day, another masterclass in how NOT to play fantasy cricket. ${resObj.winningTeam} won and half of you still picked the other team. The audacity. The delusion. The entertainment."
-2. "player_roasts": An array of objects, one per fantasy player, each with:
-   - "name": player's display name
-   - "line": ONE devastating roast line (max 30 words). MUST reference their ACTUAL picks. Use meme formats, pop culture burns, and cricket humor. Make it so specific they can't deny it.
-3. "mvp_line": A backhanded celebration. Example: "Finally did something right. Even a broken clock is right twice a day."
-4. "flop_line": The ultimate roast for the worst scorer. Make them regret opening the app.
+ROAST TEMPLATE INSPIRATION — adapt freely, never copy verbatim, each should spark a completely original line:
+${shuffledTemplates.map((t, i) => `${i + 1}. "${t}"`).join("\n")}
 
-ROAST INSPIRATION (use these formats and adapt):
-- "Picked [wrong team] to win. My man brought a plastic chair to a war zone."
-- "Doubled [wrong category] — that's not confidence, that's a cry for help."
-- "Nailed the duck prediction. Finally found something they're good at — predicting failure."
-- "Got [X] points. My WiFi router has better cricket sense."
-- "Picked [player] as top scorer. Bro scored 3. The umpire had more impact."
-- "[Name]'s picks look like they asked their cat to choose."
-- "Wicket range prediction was off by a continent."
-- "This performance is the fantasy cricket equivalent of bringing a knife to a gunfight."
+GENERATE JSON:
+1. "overall_summary": 3-4 lines in the ${persona.name} voice. Set the dramatic scene, reference the actual result, roast the group's collective performance. Make it quotable enough to screenshot.
+2. "player_roasts": Array — one object per player:
+   - "name": player display name
+   - "line": ONE roast (max 30 words). SPECIFIC to their actual picks (what they got right/wrong). EVERY line in this array must have a structurally DIFFERENT format — no two roasts can sound the same.
+3. "mvp_line": Backhanded compliment in the ${persona.name} style. Reference their actual good pick.
+4. "flop_line": Make it legendary. Reference their worst pick specifically. ${flop.displayName} should feel this.
 
-CRITICAL RULES:
-- ENGLISH ONLY. No Telugu, Hindi, or any other language.
-- Reference ACTUAL picks and results — don't make up scenarios
-- Each roast MUST be unique and specific to what that person picked
-- If someone doubled a wrong category, DESTROY that decision
-- If someone nailed the duck prediction, give them chaotic evil credit
-- Maximum sarcasm — if it doesn't hurt a little, you're not trying hard enough
-- Keep it PG-13 — savage but friendly. Roast the picks, not the person.
+NON-NEGOTIABLE RULES:
+- ENGLISH ONLY — zero exceptions
+- Never repeat a roast structure across players in the same recap
+- Always reference actual picks — wrong team, wrong player, bad double
+- Double wrong category = nuclear roast
+- Duck correct = chaotic evil respect
+- PG-13. Roast the picks, not the person.
 
-Return ONLY valid JSON, no other text.`;
-
+Return ONLY valid JSON. No other text.`;
 
     // Call Groq
     const groqKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS?.split(",")[0] || "";
@@ -213,9 +280,10 @@ Return ONLY valid JSON, no other text.`;
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
           body: JSON.stringify({
             messages: [{ role: "user", content: prompt }],
-            model, temperature: 0.7, response_format: { type: "json_object" }
+            model, temperature: 0.92, response_format: { type: "json_object" }
           }),
         });
+
         if (!groqRes.ok) { lastError = `${model}: HTTP ${groqRes.status}`; continue; }
         const data = await groqRes.json();
         const text = data?.choices?.[0]?.message?.content;

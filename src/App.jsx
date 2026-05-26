@@ -2977,7 +2977,7 @@ function LiveScorePage({matches, results, allSelections, playerScores, onSavePla
 
 function LiveDistributions({matches, allSelections}) {
   const [now] = useState(new Date());
-  const lockedMatches = matches.filter(m => isMatchLocked(m, now));
+  const lockedMatches = matches.filter(m => m.is_locked===true||(m.lock_time&&now>=new Date(m.lock_time)));
   const [selectedMatchId, setSelectedMatchId] = useState("");
 
   const m = lockedMatches.find(x => String(x.id) === String(selectedMatchId));
@@ -3069,7 +3069,7 @@ function LiveGrid({matches, results, allSelections, playerScores, user, recaps={
   const isAdmin = user?.isAdmin;
   const [expandedRow, setExpandedRow] = useState(null);
   const [now] = useState(new Date());
-  const lockedMatches = matches.filter(m => isMatchLocked(m, now));
+  const lockedMatches = matches.filter(m => m.is_locked===true||(m.lock_time&&now>=new Date(m.lock_time)));
   const [selectedMatchId, setSelectedMatchId] = useState(()=>{
     return getDefaultLiveMatchId(matches, now);
   });

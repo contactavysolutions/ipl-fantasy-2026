@@ -2640,6 +2640,130 @@ function AdminLocksTab({matches}) {
   );
 }
 
+function AdminTeamsTab({matches}) {
+  const [matchTeams, setMatchTeams] = useState({});
+  const [savingId, setSavingId] = useState(null);
+  const [savedId, setSavedId] = useState(null);
+
+  useEffect(() => {
+    const initial = {};
+    matches.forEach(m => {
+      initial[m.id] = { home: m.home, away: m.away };
+    });
+    setMatchTeams(initial);
+  }, [matches]);
+
+  const handleSaveTeams = async (matchId) => {
+    const { home, away } = matchTeams[matchId] || {};
+    if (!home || !away) return;
+    setSavingId(matchId);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
+        method: "PATCH",
+        headers: { 
+          apikey: SUPABASE_ANON_KEY, 
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({ home, away })
+      });
+      if (!res.ok) throw new Error("Failed to update teams");
+      setSavedId(matchId);
+      setTimeout(() => {
+        setSavedId(null);
+        window.location.reload();
+      }, 500);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const updateMatchTeam = (matchId, field, value) => {
+    setMatchTeams(prev => ({
+      ...prev,
+      [matchId]: {
+        ...prev[matchId],
+        [field]: value
+      }
+    }));
+  };
+
+  const sortedMatches = [...matches].sort((a, b) => {
+    const aTbd = a.home === "TBD" || a.away === "TBD";
+    const bTbd = b.home === "TBD" || b.away === "TBD";
+    if (aTbd && !bTbd) return -1;
+    if (!aTbd && bTbd) return 1;
+    return b.id - a.id;
+  });
+
+  const teamKeys = Object.keys(TEAMS).sort();
+
+  return (
+    <div style={S.card}>
+      <div style={S.sectionTitle}>Set Match Teams</div>
+      <p style={{color:"#888",fontSize:"13px",marginBottom:"16px"}}>Configure the home and away teams for scheduled matches (especially upcoming ones showing TBD).</p>
+      
+      <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+        {sortedMatches.map(m => {
+          const current = matchTeams[m.id] || { home: m.home, away: m.away };
+          const isTbd = m.home === "TBD" || m.away === "TBD";
+          return (
+            <div key={m.id} style={{
+              display:'flex',
+              justifyContent:'space-between',
+              alignItems:'center',
+              padding:'10px 12px',
+              borderBottom:'1px solid rgba(255,255,255,0.05)',
+              borderRadius: '8px',
+              background: isTbd ? 'rgba(251,191,36,0.03)' : 'transparent',
+              border: isTbd ? '1px solid rgba(251,191,36,0.15)' : 'none',
+              flexWrap:"wrap",
+              gap:"12px"
+            }}>
+              <div>
+                <span style={{fontWeight:"bold",color: isTbd ? "#fbbf24" : "#60a5fa",marginRight:"8px"}}>M{m.id}</span>
+                <span style={{fontSize:'13px',color:'#cbd5e1'}}>{m.date} · {m.time_label}</span>
+                {isTbd && <span style={{marginLeft:"8px",fontSize:"11px",background:"rgba(251,191,36,0.15)",color:"#fbbf24",padding:"2px 6px",borderRadius:"4px",fontWeight:600}}>Needs Setup</span>}
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap'}}>
+                <select 
+                  style={{...S.select, width:"110px", padding:"6px 8px", fontSize:"12px"}}
+                  value={current.home} 
+                  onChange={e => updateMatchTeam(m.id, "home", e.target.value)}
+                >
+                  <option value="TBD">TBD</option>
+                  {teamKeys.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+
+                <span style={{color:"#475569",fontSize:"12px",fontWeight:700}}>vs</span>
+
+                <select 
+                  style={{...S.select, width:"110px", padding:"6px 8px", fontSize:"12px"}}
+                  value={current.away} 
+                  onChange={e => updateMatchTeam(m.id, "away", e.target.value)}
+                >
+                  <option value="TBD">TBD</option>
+                  {teamKeys.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+
+                <button 
+                  style={{...S.btn(current.home !== m.home || current.away !== m.away ? "primary" : "ghost"), padding:'6px 14px', fontSize:'12px'}} 
+                  disabled={savingId === m.id}
+                  onClick={() => handleSaveTeams(m.id)}
+                >
+                  {savingId === m.id ? "Saving..." : savedId === m.id ? "Saved ✓" : "Save"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,playerScores,onSavePlayerScores}) {
   const [adminTab,setAdminTab]=useState("results");
   const [selectedMatch,setSelectedMatch]=useState(null);
@@ -2745,8 +2869,9 @@ function AdminPage({matches,results,onSaveResult,allSelections,onSaveSelection,p
         <button style={S.navBtn(adminTab==="insights")} onClick={()=>setAdminTab("insights")}>AI Insights</button>
         <button style={S.navBtn(adminTab==="users")} onClick={()=>setAdminTab("users")}>Player Passwords</button>
         <button style={S.navBtn(adminTab==="locks")} onClick={()=>setAdminTab("locks")}>Lock Overrides</button>
+        <button style={S.navBtn(adminTab==="teams")} onClick={()=>setAdminTab("teams")}>Match Teams</button>
       </div>
-      {adminTab==="users"?<UserManagementTab/>:adminTab==="scores"?<PlayerScoresTab matches={matches} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>:adminTab==="selections"?<PlayerSelectionsTab matches={matches} allSelections={allSelections} onSaveSelection={onSaveSelection}/>:adminTab==="insights"?<AIInsightsTab matches={matches}/>:adminTab==="locks"?<AdminLocksTab matches={matches} />:(
+      {adminTab==="users"?<UserManagementTab/>:adminTab==="scores"?<PlayerScoresTab matches={matches} allSelections={allSelections} playerScores={playerScores} onSavePlayerScores={onSavePlayerScores}/>:adminTab==="selections"?<PlayerSelectionsTab matches={matches} allSelections={allSelections} onSaveSelection={onSaveSelection}/>:adminTab==="insights"?<AIInsightsTab matches={matches}/>:adminTab==="locks"?<AdminLocksTab matches={matches} />:adminTab==="teams"?<AdminTeamsTab matches={matches} />:(
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:"16px"}}>
           <div>
             <div style={S.sectionTitle}>Locked / Completed Matches</div>
